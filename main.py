@@ -6,16 +6,15 @@ import re
 
 app = Flask(__name__)
 
+COOKIES_FILE = 'youtube.com_cookies.txt'
+
 def sanitize(name):
     return re.sub(r'[^\w\s-]', '', name).strip()[:50]
 
-ANDROID_OPTS = {
-    'extractor_args': {'youtube': {'player_client': ['android']}},
-    'http_headers': {
-        'User-Agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 12) gzip'
-    },
+BASE_OPTS = {
     'quiet': True,
     'no_warnings': True,
+    'cookiefile': COOKIES_FILE,
 }
 
 @app.route('/')
@@ -26,7 +25,7 @@ def index():
 def search():
     q = request.args.get('q', '')
     ydl_opts = {
-        **ANDROID_OPTS,
+        **BASE_OPTS,
         'extract_flat': True,
     }
     try:
@@ -57,7 +56,7 @@ def download():
     try:
         if fmt == 'mp3':
             ydl_opts = {
-                **ANDROID_OPTS,
+                **BASE_OPTS,
                 'format': 'bestaudio[ext=m4a]/bestaudio/best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
                 'postprocessors': [{
@@ -68,7 +67,7 @@ def download():
             }
         else:
             ydl_opts = {
-                **ANDROID_OPTS,
+                **BASE_OPTS,
                 'format': 'best[height<=480][filesize<20M]/best[height<=360]/worst',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
             }
