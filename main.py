@@ -24,6 +24,19 @@ def check():
     files = os.listdir(cwd)
     return jsonify({'exists': exists, 'cwd': cwd, 'files': files})
 
+@app.route('/formats')
+def formats():
+    vid = request.args.get('id', '')
+    url = f"https://www.youtube.com/watch?v={vid}"
+    ydl_opts = {**BASE_OPTS, 'listformats': False}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        fmts = [{'id': f.get('format_id'), 'ext': f.get('ext'), 'note': f.get('format_note'), 'acodec': f.get('acodec'), 'vcodec': f.get('vcodec')} for f in info.get('formats', [])]
+        return jsonify(fmts)
+    except Exception as ex:
+        return jsonify({'error': str(ex)}), 500
+
 @app.route('/')
 def index():
     return open('index.html', encoding='utf-8').read()
@@ -61,7 +74,7 @@ def download():
         if fmt == 'mp3':
             ydl_opts = {
                 **BASE_OPTS,
-               'format': 'bestaudio/best',
+                'format': 'bestaudio/best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
@@ -73,8 +86,8 @@ def download():
             ydl_opts = {
                 **BASE_OPTS,
                 'format': 'bestvideo[height<=480]+bestaudio/best[height<=480]/best',
-'merge_output_format': 'mp4',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+                'merge_output_format': 'mp4',
             }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
