@@ -4,103 +4,59 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT → WhatsApp</title>
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #0a0a0f;
-  --surface: #111118;
-  --border: #1e1e2e;
-  --red: #ff3b3b;
-  --green: #25d366;
-  --text: #f0f0f5;
-  --muted: #6b6b88;
-  --accent: #ff6b35;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Rubik', sans-serif;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 24px 16px;
-}
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255,59,59,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,59,59,0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  pointer-events: none;
-}
-.container { width: 100%; max-width: 520px; position: relative; z-index: 1; padding-top: 32px; }
-.logo { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 32px; }
-.logo-yt { width: 44px; height: 44px; background: var(--red); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-.logo-wa { width: 44px; height: 44px; background: var(--green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-.logo-arr { color: var(--muted); font-size: 18px; }
-h1 { font-size: 26px; font-weight: 900; text-align: center; margin-bottom: 28px; }
-h1 span { color: var(--red); }
-.tabs { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
-.tab { flex: 1; padding: 10px; border: none; background: transparent; color: var(--muted); font-family: 'Rubik', sans-serif; font-size: 14px; font-weight: 500; border-radius: 9px; cursor: pointer; transition: all .2s; }
-.tab.active { background: var(--border); color: var(--text); }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 14px; }
-.label { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-.row { display: flex; gap: 8px; }
-input, select {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  color: var(--text);
-  font-family: 'Rubik', sans-serif;
-  font-size: 14px;
-  outline: none;
-  transition: border-color .2s;
-}
-input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255,59,59,0.15); }
-input::placeholder { color: var(--muted); }
-.btn { padding: 12px 18px; border: none; border-radius: 10px; font-family: 'Rubik', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; }
-.btn-red { background: var(--red); color: #fff; }
-.btn-red:active { transform: scale(0.97); }
-.btn-green { background: var(--green); color: #fff; width: 100%; padding: 14px; font-size: 15px; margin-top: 10px; }
-.btn-green:active { transform: scale(0.97); }
-.results { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.result-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all .2s; }
-.result-item.selected, .result-item:active { border-color: var(--red); background: rgba(255,59,59,0.08); }
-.result-item img { width: 72px; height: 46px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
-.result-title { font-size: 12px; font-weight: 500; margin-bottom: 3px; direction: ltr; text-align: left; }
-.result-meta { font-size: 11px; color: var(--muted); }
-.result-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all .2s; margin-right: auto; }
-.result-item.selected .result-check { background: var(--red); border-color: var(--red); color: #fff; }
-.fmt-row { display: flex; gap: 8px; margin-top: 14px; }
-.fmt-btn { flex: 1; padding: 10px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--muted); font-family: 'Rubik', sans-serif; font-size: 13px; cursor: pointer; text-align: center; transition: all .2s; }
-.fmt-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.1); }
-.phone-row { display: flex; gap: 8px; margin-top: 12px; }
-.status { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 14px; display: none; }
-.status.show { display: block; }
-.status-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-.bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.bar-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--accent)); border-radius: 2px; transition: width .4s; width: 0%; }
-.success { background: rgba(37,211,102,0.07); border: 1px solid rgba(37,211,102,0.25); border-radius: 12px; padding: 20px; text-align: center; display: none; margin-bottom: 14px; }
-.success.show { display: block; }
-.success .icon { font-size: 36px; margin-bottom: 8px; }
-.success h3 { font-size: 15px; margin-bottom: 4px; }
-.success p { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
-.hidden { display: none !important; }
-.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; margin-right: 6px; vertical-align: middle; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.note { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.7; margin-top: 8px; }
+:root{--bg:#0a0a0f;--surface:#111118;--border:#1e1e2e;--red:#ff3b3b;--green:#25d366;--text:#f0f0f5;--muted:#6b6b88;--accent:#ff6b35}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Rubik',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.container{width:100%;max-width:520px;padding-top:28px}
+.logo{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:24px}
+.logo-yt{width:44px;height:44px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(255,59,59,0.3)}
+.logo-wa{width:44px;height:44px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(37,211,102,0.3)}
+h1{font-size:24px;font-weight:900;text-align:center;margin-bottom:24px}
+h1 span{color:var(--red)}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:14px}
+.tab{flex:1;padding:10px;border:none;background:transparent;color:var(--muted);font-family:'Rubik',sans-serif;font-size:14px;font-weight:500;border-radius:9px;cursor:pointer;transition:all .2s}
+.tab.active{background:var(--border);color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:12px}
+.lbl{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.row{display:flex;gap:8px}
+input,select{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-family:'Rubik',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+input:focus{border-color:var(--red)}
+input::placeholder{color:var(--muted)}
+.btn{padding:12px 18px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+.btn-red{background:var(--red);color:#fff}
+.btn-green{background:var(--green);color:#fff;width:100%;padding:14px;font-size:15px;margin-top:10px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer}
+.results{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.ri{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s}
+.ri.sel,.ri:active{border-color:var(--red);background:rgba(255,59,59,0.08)}
+.ri img{width:72px;height:46px;border-radius:6px;object-fit:cover;flex-shrink:0}
+.ri-title{font-size:12px;font-weight:500;margin-bottom:3px;direction:ltr;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.ri-meta{font-size:11px;color:var(--muted)}
+.chk{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s;margin-right:auto}
+.ri.sel .chk{background:var(--red);border-color:var(--red);color:#fff}
+.fmt-row{display:flex;gap:8px;margin-top:12px}
+.fmt{flex:1;padding:10px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-family:'Rubik',sans-serif;font-size:13px;cursor:pointer;text-align:center;transition:all .2s}
+.fmt.active{border-color:var(--accent);color:var(--accent);background:rgba(255,107,53,0.1)}
+.phone-row{display:flex;gap:8px;margin-top:10px}
+.status-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:12px;display:none}
+.status-box.show{display:block}
+.st{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px}
+.bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.fill{height:100%;background:linear-gradient(90deg,var(--red),var(--accent));border-radius:2px;transition:width .4s;width:0%}
+.success{background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.25);border-radius:12px;padding:20px;text-align:center;display:none;margin-bottom:12px}
+.success.show{display:block}
+.hidden{display:none!important}
+.spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;margin-left:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.note{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="logo">
     <div class="logo-yt">▶</div>
-    <div class="logo-arr">→</div>
+    <span style="color:var(--muted);font-size:18px">→</span>
     <div class="logo-wa">💬</div>
   </div>
   <h1>יוטיוב <span>לוואטסאפ</span></h1>
@@ -111,23 +67,191 @@ input::placeholder { color: var(--muted); }
   </div>
 
   <div id="tab-link" class="card">
-    <div class="label">הדבק קישור YouTube</div>
+    <div class="lbl">הדבק קישור YouTube</div>
     <div class="row">
-      <input id="link-in" type="text" placeholder="https://youtube.com/watch?v=..." style="flex:1;direction:ltr;" />
+      <input id="link-in" type="text" placeholder="https://youtube.com/watch?v=..." style="flex:1;direction:ltr" />
       <button class="btn btn-red" onclick="processLink()">טען</button>
     </div>
   </div>
 
   <div id="tab-search" class="card hidden">
-    <div class="label">חיפוש</div>
+    <div class="lbl">חיפוש</div>
     <div class="row">
-      <input id="search-in" type="text" placeholder="חפש שיר, שיעור, סרטון..." style="flex:1;" onkeydown="if(event.key==='Enter')doSearch()" />
+      <input id="search-in" type="text" placeholder="חפש שיר, שיעור..." style="flex:1" onkeydown="if(event.key==='Enter')doSearch()" />
       <button class="btn btn-red" onclick="doSearch()">חפש</button>
     </div>
     <div id="results" class="results"></div>
   </div>
 
   <div id="video-card" class="card hidden">
-    <div class="label">סרטון נבחר</div>
-    <div style="display:flex;gap:10px;align-items:center;">
-      <img id="v-thumb" src="" style="width:80px;height:52px;border-radius:7px;
+    <div class="lbl">סרטון נבחר</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <img id="v-thumb" src="" style="width:80px;height:52px;border-radius:7px;object-fit:cover" />
+      <div style="flex:1;min-width:0">
+        <div id="v-title" style="font-size:13px;font-weight:600;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        <div id="v-dur" style="font-size:11px;color:var(--muted)"></div>
+      </div>
+    </div>
+    <div class="fmt-row">
+      <button class="fmt active" id="f-mp3" onclick="setFmt('mp3')">🎵 MP3<br><small>אודיו</small></button>
+      <button class="fmt" id="f-mp4" onclick="setFmt('mp4')">🎬 MP4<br><small>וידאו</small></button>
+    </div>
+    <div style="margin-top:14px">
+      <div class="lbl">מספר וואטסאפ</div>
+      <div class="phone-row">
+        <select id="cc" style="min-width:90px">
+          <option value="972">🇮🇱 +972</option>
+          <option value="1">🇺🇸 +1</option>
+          <option value="44">🇬🇧 +44</option>
+        </select>
+        <input id="phone" type="tel" placeholder="05X-XXXXXXX" style="flex:1" />
+      </div>
+    </div>
+    <div id="status-box" class="status-box">
+      <div class="st"><span id="s-txt">מכין...</span><span id="s-pct">0%</span></div>
+      <div class="bar"><div class="fill" id="bar-fill"></div></div>
+    </div>
+    <button class="btn btn-red" style="width:100%;padding:14px;font-size:15px;margin-top:14px" onclick="startDl()" id="dl-btn">
+      ⬇️ הורד ושלח לוואטסאפ
+    </button>
+  </div>
+
+  <div id="success" class="success">
+    <div style="font-size:36px;margin-bottom:8px">✅</div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">הקובץ הורד!</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">לחץ להמשך — וואטסאפ ייפתח, צרף את הקובץ מהורדות</div>
+    <button class="btn-green" onclick="openWA()">💬 פתח וואטסאפ</button>
+  </div>
+
+  <div class="note">לשימוש אישי בלבד</div>
+</div>
+
+<script>
+let vid=null,fmt='mp3',waPhone='';
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='link')||(i===1&&t==='search')));
+  document.getElementById('tab-link').classList.toggle('hidden',t!=='link');
+  document.getElementById('tab-search').classList.toggle('hidden',t!=='search');
+}
+
+function setFmt(f){
+  fmt=f;
+  document.getElementById('f-mp3').classList.toggle('active',f==='mp3');
+  document.getElementById('f-mp4').classList.toggle('active',f==='mp4');
+}
+
+function dur(s){
+  if(!s)return '';
+  return Math.floor(s/60)+':'+String(Math.floor(s)%60).padStart(2,'0');
+}
+
+function showVideo(id,title,thumb,secs){
+  vid={id,title};
+  document.getElementById('v-thumb').src=thumb;
+  document.getElementById('v-title').textContent=title;
+  document.getElementById('v-dur').textContent=secs?'⏱ '+dur(secs):'';
+  document.getElementById('video-card').classList.remove('hidden');
+  document.getElementById('success').classList.remove('show');
+  document.getElementById('status-box').classList.remove('show');
+  setProg(0,'');
+}
+
+function setProg(pct,txt){
+  document.getElementById('bar-fill').style.width=pct+'%';
+  document.getElementById('s-txt').textContent=txt;
+  document.getElementById('s-pct').textContent=pct+'%';
+}
+
+async function processLink(){
+  const url=document.getElementById('link-in').value.trim();
+  const m=url.match(/(?:v=|youtu\.be\/|shorts\/)([^&\n?#]{11})/);
+  if(!m)return alert('קישור לא תקין');
+  const id=m[1];
+  const thumb=`https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+  showVideo(id,'טוען...',thumb,0);
+  try{
+    const r=await fetch('/search?q='+id);
+    const data=await r.json();
+    if(data&&data[0])showVideo(id,data[0].title,thumb,data[0].duration);
+    else showVideo(id,'סרטון YouTube',thumb,0);
+  }catch(e){showVideo(id,'סרטון YouTube',thumb,0);}
+}
+
+async function doSearch(){
+  const q=document.getElementById('search-in').value.trim();
+  if(!q)return;
+  const box=document.getElementById('results');
+  box.innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">מחפש...<span class="spinner"></span></div>';
+  try{
+    const r=await fetch('/search?q='+encodeURIComponent(q));
+    const data=await r.json();
+    box.innerHTML='';
+    if(!data||!data.length){box.innerHTML='<div style="color:var(--muted);font-size:13px">לא נמצאו תוצאות</div>';return;}
+    data.forEach(v=>{
+      const el=document.createElement('div');
+      el.className='ri';
+      el.innerHTML=`<img src="${v.thumbnail}" onerror="this.src='https://i.ytimg.com/vi/${v.id}/mqdefault.jpg'"/>
+        <div style="flex:1;min-width:0"><div class="ri-title">${v.title}</div><div class="ri-meta">${dur(v.duration)}</div></div>
+        <div class="chk">✓</div>`;
+      el.onclick=()=>{
+        document.querySelectorAll('.ri').forEach(x=>x.classList.remove('sel'));
+        el.classList.add('sel');
+        showVideo(v.id,v.title,v.thumbnail,v.duration);
+      };
+      box.appendChild(el);
+    });
+  }catch(e){
+    box.innerHTML='<div style="color:var(--red);font-size:13px">שגיאה בחיפוש</div>';
+  }
+}
+
+async function startDl(){
+  if(!vid)return alert('בחר סרטון');
+  let phone=document.getElementById('phone').value.replace(/\D/g,'');
+  if(!phone)return alert('הכנס מספר טלפון');
+  if(phone.startsWith('0'))phone=phone.slice(1);
+  waPhone=document.getElementById('cc').value+phone;
+
+  const btn=document.getElementById('dl-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span> מוריד...';
+  document.getElementById('status-box').classList.add('show');
+  setProg(10,'שולח לשרת...');
+
+  try{
+    setProg(30,'מוריד מיוטיוב...');
+    const resp=await fetch(`/download?id=${vid.id}&fmt=${fmt}`);
+    setProg(70,'מקבל קובץ...');
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({error:'שגיאה'}));
+      throw new Error(err.error||'שגיאה');
+    }
+    const blob=await resp.blob();
+    setProg(90,'שומר...');
+    const ext=fmt==='mp3'?'mp3':'mp4';
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=(vid.title||'audio')+'.'+ext;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setProg(100,'הסתיים!');
+    document.getElementById('success').classList.add('show');
+    document.getElementById('success').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }catch(e){
+    alert('שגיאה: '+e.message);
+    setProg(0,'');
+    document.getElementById('status-box').classList.remove('show');
+  }
+  btn.disabled=false;
+  btn.innerHTML='⬇️ הורד ושלח לוואטסאפ';
+}
+
+function openWA(){
+  window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent('📎 '+(vid?.title||'')),'_blank');
+}
+</script>
+</body>
+</html>
