@@ -15,7 +15,6 @@ BASE_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'cookiefile': COOKIES_FILE,
-    'extractor_args': {'youtube': {'player_client': ['web']}},
 }
 
 @app.route('/')
@@ -58,7 +57,7 @@ def download():
         if fmt == 'mp3':
             ydl_opts = {
                 **BASE_OPTS,
-                'format': 'bestaudio/best',
+                'format': 'bestaudio',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
@@ -69,8 +68,9 @@ def download():
         else:
             ydl_opts = {
                 **BASE_OPTS,
-                'format': 'best[height<=480]/best[height<=360]/best',
+                'format': 'worstvideo+worstaudio/worst',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+                'merge_output_format': 'mp4',
             }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
