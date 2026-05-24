@@ -26,8 +26,9 @@ input:focus{border-color:var(--red)}
 input::placeholder{color:var(--muted)}
 .btn{padding:12px 18px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
 .btn-red{background:var(--red);color:#fff}
-.btn-green{background:var(--green);color:#fff;width:100%;padding:14px;font-size:15px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer;margin-top:8px}
-.btn-orange{background:var(--accent);color:#fff;width:100%;padding:14px;font-size:15px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer;margin-top:8px;box-shadow:0 4px 20px rgba(255,107,53,0.3)}
+.btn-green{background:var(--green);color:#fff;width:100%;padding:14px;font-size:15px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer;margin-top:8px;display:block}
+.btn-orange{background:var(--accent);color:#fff;width:100%;padding:14px;font-size:15px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer;margin-top:8px;display:block;box-shadow:0 4px 20px rgba(255,107,53,0.3)}
+.btn-gray{background:var(--border);color:var(--text);width:100%;padding:14px;font-size:15px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer;margin-top:8px;display:block}
 .results{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .ri{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s}
 .ri.sel,.ri:active{border-color:var(--red);background:rgba(255,59,59,0.08)}
@@ -113,7 +114,7 @@ input::placeholder{color:var(--muted)}
       <div class="bar"><div class="fill" id="bar-fill"></div></div>
     </div>
     <button class="btn btn-red" style="width:100%;padding:14px;font-size:15px;margin-top:14px" onclick="startDl()" id="dl-btn">
-      ⬇️ הורד ושלח לוואטסאפ
+      ⬇️ הורד
     </button>
   </div>
 
@@ -123,6 +124,7 @@ input::placeholder{color:var(--muted)}
     <div style="font-size:12px;color:var(--muted);margin-bottom:14px">בחר מה לעשות עם הקובץ</div>
     <button class="btn-green" onclick="openWA()">💬 שלח בוואטסאפ</button>
     <button class="btn-orange" onclick="reDownload()">⬇️ הורד שוב לטלפון</button>
+    <button class="btn-gray" onclick="resetApp()">🔄 הורדה חדשה</button>
   </div>
 
   <div class="note">לשימוש אישי בלבד</div>
@@ -243,7 +245,7 @@ async function startDl(){
     document.getElementById('status-box').classList.remove('show');
   }
   btn.disabled=false;
-  btn.innerHTML='⬇️ הורד ושלח לוואטסאפ';
+  btn.innerHTML='⬇️ הורד';
 }
 
 function triggerDownload(blob,ext){
@@ -262,6 +264,17 @@ function reDownload(){
 
 function openWA(){
   window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent('📎 '+(vid?.title||'')),'_blank');
+}
+
+function resetApp(){
+  vid=null;lastBlob=null;lastExt='mp3';waPhone='';
+  document.getElementById('video-card').classList.add('hidden');
+  document.getElementById('success').classList.remove('show');
+  document.getElementById('link-in').value='';
+  document.getElementById('search-in').value='';
+  document.getElementById('results').innerHTML='';
+  setProg(0,'');
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 </script>
 </body>
