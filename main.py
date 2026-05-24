@@ -24,10 +24,7 @@ def index():
 @app.route('/search')
 def search():
     q = request.args.get('q', '')
-    ydl_opts = {
-        **BASE_OPTS,
-        'extract_flat': True,
-    }
+    ydl_opts = {**BASE_OPTS, 'extract_flat': True}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch6:{q}", download=False)
@@ -68,9 +65,8 @@ def download():
         else:
             ydl_opts = {
                 **BASE_OPTS,
-                'format': 'worstvideo+worstaudio/worst',
+                'format': 'best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-                'merge_output_format': 'mp4',
             }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
