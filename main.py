@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, Response
+from flask import Flask, request, jsonify, send_file
 import yt_dlp
 import os
 import tempfile
@@ -9,6 +9,15 @@ app = Flask(__name__)
 def sanitize(name):
     return re.sub(r'[^\w\s-]', '', name).strip()[:50]
 
+ANDROID_OPTS = {
+    'extractor_args': {'youtube': {'player_client': ['android']}},
+    'http_headers': {
+        'User-Agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 12) gzip'
+    },
+    'quiet': True,
+    'no_warnings': True,
+}
+
 @app.route('/')
 def index():
     return open('index.html', encoding='utf-8').read()
@@ -17,10 +26,8 @@ def index():
 def search():
     q = request.args.get('q', '')
     ydl_opts = {
-        'quiet': True,
+        **ANDROID_OPTS,
         'extract_flat': True,
-        'default_search': 'ytsearch6',
-        'no_warnings': True,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -50,10 +57,9 @@ def download():
     try:
         if fmt == 'mp3':
             ydl_opts = {
+                **ANDROID_OPTS,
                 'format': 'bestaudio[ext=m4a]/bestaudio/best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-                'quiet': True,
-                'no_warnings': True,
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -62,10 +68,9 @@ def download():
             }
         else:
             ydl_opts = {
+                **ANDROID_OPTS,
                 'format': 'best[height<=480][filesize<20M]/best[height<=360]/worst',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-                'quiet': True,
-                'no_warnings': True,
             }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
