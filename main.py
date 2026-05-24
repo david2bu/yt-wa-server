@@ -20,17 +20,14 @@ BASE_OPTS = {
 @app.route('/check')
 def check():
     exists = os.path.exists(COOKIES_FILE)
-    cwd = os.getcwd()
-    files = os.listdir(cwd)
-    return jsonify({'exists': exists, 'cwd': cwd, 'files': files})
+    return jsonify({'exists': exists, 'cwd': os.getcwd(), 'files': os.listdir('.')})
 
 @app.route('/formats')
 def formats():
     vid = request.args.get('id', '')
     url = f"https://www.youtube.com/watch?v={vid}"
-    ydl_opts = {**BASE_OPTS, 'listformats': False}
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(BASE_OPTS) as ydl:
             info = ydl.extract_info(url, download=False)
         fmts = [{'id': f.get('format_id'), 'ext': f.get('ext'), 'note': f.get('format_note'), 'acodec': f.get('acodec'), 'vcodec': f.get('vcodec')} for f in info.get('formats', [])]
         return jsonify(fmts)
@@ -74,7 +71,7 @@ def download():
         if fmt == 'mp3':
             ydl_opts = {
                 **BASE_OPTS,
-                'format': 'bestaudio/best',
+                'format': '140/139/bestaudio',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
@@ -85,9 +82,8 @@ def download():
         else:
             ydl_opts = {
                 **BASE_OPTS,
-                'format': 'bestvideo[height<=480]+bestaudio/best[height<=480]/best',
+                'format': '18/best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-                'merge_output_format': 'mp4',
             }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
