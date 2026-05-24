@@ -17,8 +17,11 @@ BASE_OPTS = {
     'cookiefile': COOKIES_FILE,
 }
 
-@app.route('/')
-def index():
+@app.route('/check')
+def check():
+    exists = os.path.exists(COOKIES_FILE)
+    size = os.path.getsize(COOKIES_FILE) if exists else 0
+    return jsonify({'cookies_file': COOKIES_FILE, 'exists': exists, 'size': size})def index():
     return open('index.html', encoding='utf-8').read()
 
 @app.route('/search')
