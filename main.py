@@ -57,7 +57,7 @@ def download():
         if fmt == 'mp3':
             ydl_opts = {
                 **BASE_OPTS,
-                'format': 'bestaudio[ext=m4a]/bestaudio/best',
+                'format': 'bestaudio/best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
@@ -68,7 +68,7 @@ def download():
         else:
             ydl_opts = {
                 **BASE_OPTS,
-                'format': 'best[height<=480][filesize<20M]/best[height<=360]/worst',
+                'format': 'best[height<=480]/best[height<=360]/best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
             }
 
