@@ -1,33 +1,22 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, send_file
+import yt_dlp
 import os
+import tempfile
 import re
-import requests
 
 app = Flask(__name__)
 
-INVIDIOUS_INSTANCES = [
-    'https://invidious.io.lol',
-    'https://invidious.fdn.fr',
-    'https://invidious.slipfox.xyz',
-    'https://inv.tux.pizza',
-    'https://invidious.privacyredirect.com',
-    'https://yt.drgnz.club',
-    'https://vid.puffyan.us',
-    'https://invidious.lunar.icu',
-]
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), 'youtube.com_cookies.txt')
 
 def sanitize(name):
     return re.sub(r'[^\w\s-]', '', name).strip()[:50]
 
-def get_invidious(path, params=None):
-    for inst in INVIDIOUS_INSTANCES:
-        try:
-            r = requests.get(f"{inst}/api/v1/{path}", params=params, timeout=8)
-            if r.status_code == 200:
-                return r.json()
-        except:
-            continue
-    return None
+BASE_OPTS = {
+    'quiet': True,
+    'no_warnings': True,
+    'cookiefile': COOKIES_FILE,
+    'extractor_args': {'youtube': {'player_client': ['web']}},
+}
 
 @app.route('/')
 def index():
@@ -36,32 +25,24 @@ def index():
 @app.route('/search')
 def search():
     q = request.args.get('q', '')
+    ydl_opts = {
+        **BASE_OPTS,
+        'extract_flat': True,
+    }
     try:
-        data = get_invidious('search', {'q': q, 'type': 'video'})
-        if not data:
-            return jsonify([])
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch6:{q}", download=False)
         results = []
-        for v in data[:6]:
+        for e in info.get('entries', []):
             results.append({
-                'id': v.get('videoId'),
-                'title': v.get('title'),
-                'duration': v.get('lengthSeconds'),
-                'thumbnail': f"https://i.ytimg.com/vi/{v.get('videoId')}/mqdefault.jpg"
+                'id': e.get('id'),
+                'title': e.get('title'),
+                'duration': e.get('duration'),
+                'thumbnail': f"https://i.ytimg.com/vi/{e.get('id')}/mqdefault.jpg"
             })
         return jsonify(results)
     except Exception as ex:
         return jsonify({'error': str(ex)}), 500
-
-@app.route('/ping')
-def ping():
-    results = []
-    for inst in INVIDIOUS_INSTANCES:
-        try:
-            r = requests.get(f"{inst}/api/v1/search?q=test&type=video", timeout=5)
-            results.append({'instance': inst, 'status': r.status_code, 'ok': r.status_code==200})
-        except Exception as e:
-            results.append({'instance': inst, 'status': 'error', 'ok': False, 'error': str(e)})
-    return jsonify(results)
 
 @app.route('/download')
 def download():
@@ -70,64 +51,51 @@ def download():
     if not vid:
         return jsonify({'error': 'missing id'}), 400
 
+    tmpdir = tempfile.mkdtemp()
+    url = f"https://www.youtube.com/watch?v={vid}"
+
     try:
-        data = get_invidious(f"videos/{vid}")
-        if not data:
-            return jsonify({'error': 'לא נמצא סרטון'}), 500
-
-        title = sanitize(data.get('title', 'audio'))
-        url = None
-        ext = 'mp4'
-
         if fmt == 'mp3':
-            formats = data.get('adaptiveFormats', [])
-            audio = [f for f in formats if 'audio' in f.get('type', '')]
-            if audio:
-                best = sorted(audio, key=lambda x: x.get('bitrate', 0), reverse=True)[0]
-                url = best.get('url')
-                ext = 'webm'
+            ydl_opts = {
+                **BASE_OPTS,
+                'format': 'bestaudio/best',
+                'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '128',
+                }],
+            }
+        else:
+            ydl_opts = {
+                **BASE_OPTS,
+                'format': 'best[height<=480]/best[height<=360]/best',
+                'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+            }
 
-        if not url:
-            streams = data.get('formatStreams', [])
-            for q in ['360p', '480p', '240p', '144p']:
-                for s in streams:
-                    if s.get('qualityLabel') == q:
-                        url = s.get('url')
-                        ext = 'mp4'
-                        break
-                if url:
-                    break
-            if not url and streams:
-                url = streams[-1].get('url')
-                ext = 'mp4'
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = sanitize(info.get('title', 'audio'))
 
-        if not url:
-            return jsonify({'error': 'לא נמצא קובץ להורדה'}), 500
+        files = os.listdir(tmpdir)
+        if not files:
+            return jsonify({'error': 'הורדה נכשלה'}), 500
 
-        headers = {'User-Agent': 'Mozilla/5.0', 'Range': 'bytes=0-'}
-        r = requests.get(url, headers=headers, stream=True, timeout=30)
+        filepath = os.path.join(tmpdir, files[0])
+        size = os.path.getsize(filepath)
 
-        if not r.ok:
-            return jsonify({'error': f'שגיאה: {r.status_code}'}), 500
-
-        content_length = r.headers.get('Content-Length')
-        if content_length and int(content_length) > 20 * 1024 * 1024:
+        if size > 20 * 1024 * 1024:
+            os.remove(filepath)
             return jsonify({'error': 'הקובץ גדול מ-20MB'}), 400
 
-        mime = 'audio/webm' if ext == 'webm' else 'video/mp4'
+        ext = files[0].split('.')[-1]
+        mime = 'audio/mpeg' if ext == 'mp3' else 'video/mp4'
 
-        def generate():
-            for chunk in r.iter_content(chunk_size=8192):
-                if chunk:
-                    yield chunk
-
-        return Response(
-            generate(),
+        return send_file(
+            filepath,
             mimetype=mime,
-            headers={
-                'Content-Disposition': f'attachment; filename="{title}.{ext}"',
-                'Content-Length': content_length or '',
-            }
+            as_attachment=True,
+            download_name=f"{title}.{ext}"
         )
 
     except Exception as ex:
