@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, Response
 import yt_dlp
 import os
 import tempfile
@@ -11,23 +11,31 @@ def sanitize(name):
 
 @app.route('/')
 def index():
-    return open('index.html').read()
+    return open('index.html', encoding='utf-8').read()
 
 @app.route('/search')
 def search():
     q = request.args.get('q', '')
-    ydl_opts = {'quiet': True, 'extract_flat': True, 'default_search': 'ytsearch6'}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch6:{q}", download=False)
-    results = []
-    for e in info.get('entries', []):
-        results.append({
-            'id': e.get('id'),
-            'title': e.get('title'),
-            'duration': e.get('duration'),
-            'thumbnail': f"https://i.ytimg.com/vi/{e.get('id')}/mqdefault.jpg"
-        })
-    return jsonify(results)
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': True,
+        'default_search': 'ytsearch6',
+        'no_warnings': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch6:{q}", download=False)
+        results = []
+        for e in info.get('entries', []):
+            results.append({
+                'id': e.get('id'),
+                'title': e.get('title'),
+                'duration': e.get('duration'),
+                'thumbnail': f"https://i.ytimg.com/vi/{e.get('id')}/mqdefault.jpg"
+            })
+        return jsonify(results)
+    except Exception as ex:
+        return jsonify({'error': str(ex)}), 500
 
 @app.route('/download')
 def download():
@@ -39,36 +47,54 @@ def download():
     tmpdir = tempfile.mkdtemp()
     url = f"https://www.youtube.com/watch?v={vid}"
 
-    if fmt == 'mp3':
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '128'}],
-            'quiet': True,
-        }
-    else:
-        ydl_opts = {
-            'format': 'best[filesize<20M]/best[height<=480]',
-            'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-            'quiet': True,
-        }
+    try:
+        if fmt == 'mp3':
+            ydl_opts = {
+                'format': 'bestaudio[ext=m4a]/bestaudio/best',
+                'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+                'quiet': True,
+                'no_warnings': True,
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '128',
+                }],
+            }
+        else:
+            ydl_opts = {
+                'format': 'best[height<=480][filesize<20M]/best[height<=360]/worst',
+                'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+                'quiet': True,
+                'no_warnings': True,
+            }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        title = sanitize(info.get('title', 'video'))
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = sanitize(info.get('title', 'audio'))
 
-    files = os.listdir(tmpdir)
-    if not files:
-        return jsonify({'error': 'download failed'}), 500
+        files = os.listdir(tmpdir)
+        if not files:
+            return jsonify({'error': 'הורדה נכשלה'}), 500
 
-    filepath = os.path.join(tmpdir, files[0])
-    size = os.path.getsize(filepath)
-    if size > 20 * 1024 * 1024:
-        os.remove(filepath)
-        return jsonify({'error': 'file too large (>20MB)'}), 400
+        filepath = os.path.join(tmpdir, files[0])
+        size = os.path.getsize(filepath)
 
-    ext = files[0].split('.')[-1]
-    return send_file(filepath, as_attachment=True, download_name=f"{title}.{ext}")
+        if size > 20 * 1024 * 1024:
+            os.remove(filepath)
+            return jsonify({'error': 'הקובץ גדול מ-20MB'}), 400
+
+        ext = files[0].split('.')[-1]
+        mime = 'audio/mpeg' if ext == 'mp3' else 'video/mp4'
+
+        return send_file(
+            filepath,
+            mimetype=mime,
+            as_attachment=True,
+            download_name=f"{title}.{ext}"
+        )
+
+    except Exception as ex:
+        return jsonify({'error': str(ex)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
