@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YT → WhatsApp</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #111118;
+  --border: #1e1e2e;
+  --red: #ff3b3b;
+  --green: #25d366;
+  --text: #f0f0f5;
+  --muted: #6b6b88;
+  --accent: #ff6b35;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rubik', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,59,59,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,59,59,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+.container { width: 100%; max-width: 520px; position: relative; z-index: 1; padding-top: 32px; }
+.logo { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 32px; }
+.logo-yt { width: 44px; height: 44px; background: var(--red); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.logo-wa { width: 44px; height: 44px; background: var(--green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.logo-arr { color: var(--muted); font-size: 18px; }
+h1 { font-size: 26px; font-weight: 900; text-align: center; margin-bottom: 28px; }
+h1 span { color: var(--red); }
+.tabs { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
+.tab { flex: 1; padding: 10px; border: none; background: transparent; color: var(--muted); font-family: 'Rubik', sans-serif; font-size: 14px; font-weight: 500; border-radius: 9px; cursor: pointer; transition: all .2s; }
+.tab.active { background: var(--border); color: var(--text); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 14px; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.row { display: flex; gap: 8px; }
+input, select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: 'Rubik', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255,59,59,0.15); }
+input::placeholder { color: var(--muted); }
+.btn { padding: 12px 18px; border: none; border-radius: 10px; font-family: 'Rubik', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-red:active { transform: scale(0.97); }
+.btn-green { background: var(--green); color: #fff; width: 100%; padding: 14px; font-size: 15px; margin-top: 10px; }
+.btn-green:active { transform: scale(0.97); }
+.results { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.result-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all .2s; }
+.result-item.selected, .result-item:active { border-color: var(--red); background: rgba(255,59,59,0.08); }
+.result-item img { width: 72px; height: 46px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+.result-title { font-size: 12px; font-weight: 500; margin-bottom: 3px; direction: ltr; text-align: left; }
+.result-meta { font-size: 11px; color: var(--muted); }
+.result-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all .2s; margin-right: auto; }
+.result-item.selected .result-check { background: var(--red); border-color: var(--red); color: #fff; }
+.fmt-row { display: flex; gap: 8px; margin-top: 14px; }
+.fmt-btn { flex: 1; padding: 10px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--muted); font-family: 'Rubik', sans-serif; font-size: 13px; cursor: pointer; text-align: center; transition: all .2s; }
+.fmt-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.1); }
+.phone-row { display: flex; gap: 8px; margin-top: 12px; }
+.status { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 14px; display: none; }
+.status.show { display: block; }
+.status-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--accent)); border-radius: 2px; transition: width .4s; width: 0%; }
+.success { background: rgba(37,211,102,0.07); border: 1px solid rgba(37,211,102,0.25); border-radius: 12px; padding: 20px; text-align: center; display: none; margin-bottom: 14px; }
+.success.show { display: block; }
+.success .icon { font-size: 36px; margin-bottom: 8px; }
+.success h3 { font-size: 15px; margin-bottom: 4px; }
+.success p { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+.hidden { display: none !important; }
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; margin-right: 6px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.note { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.7; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-yt">▶</div>
+    <div class="logo-arr">→</div>
+    <div class="logo-wa">💬</div>
+  </div>
+  <h1>יוטיוב <span>לוואטסאפ</span></h1>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('link')">🔗 קישור</button>
+    <button class="tab" onclick="switchTab('search')">🔍 חיפוש</button>
+  </div>
+
+  <div id="tab-link" class="card">
+    <div class="label">הדבק קישור YouTube</div>
+    <div class="row">
+      <input id="link-in" type="text" placeholder="https://youtube.com/watch?v=..." style="flex:1;direction:ltr;" />
+      <button class="btn btn-red" onclick="processLink()">טען</button>
+    </div>
+  </div>
+
+  <div id="tab-search" class="card hidden">
+    <div class="label">חיפוש</div>
+    <div class="row">
+      <input id="search-in" type="text" placeholder="חפש שיר, שיעור, סרטון..." style="flex:1;" onkeydown="if(event.key==='Enter')doSearch()" />
+      <button class="btn btn-red" onclick="doSearch()">חפש</button>
+    </div>
+    <div id="results" class="results"></div>
+  </div>
+
+  <div id="video-card" class="card hidden">
+    <div class="label">סרטון נבחר</div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <img id="v-thumb" src="" style="width:80px;height:52px;border-radius:7px;
