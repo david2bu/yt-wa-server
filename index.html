@@ -26,7 +26,8 @@ input:focus{border-color:var(--red)}
 input::placeholder{color:var(--muted)}
 .btn{padding:12px 18px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
 .btn-red{background:var(--red);color:#fff}
-.btn-green{background:var(--green);color:#fff;width:100%;padding:14px;font-size:15px;margin-top:10px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer}
+.btn-green{background:var(--green);color:#fff;width:100%;padding:14px;font-size:15px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer;margin-top:8px}
+.btn-orange{background:var(--accent);color:#fff;width:100%;padding:14px;font-size:15px;border:none;border-radius:10px;font-family:'Rubik',sans-serif;font-weight:700;cursor:pointer;margin-top:8px;box-shadow:0 4px 20px rgba(255,107,53,0.3)}
 .results{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .ri{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s}
 .ri.sel,.ri:active{border-color:var(--red);background:rgba(255,59,59,0.08)}
@@ -119,15 +120,16 @@ input::placeholder{color:var(--muted)}
   <div id="success" class="success">
     <div style="font-size:36px;margin-bottom:8px">✅</div>
     <div style="font-size:15px;font-weight:700;margin-bottom:4px">הקובץ הורד!</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">לחץ להמשך — וואטסאפ ייפתח, צרף את הקובץ מהורדות</div>
-    <button class="btn-green" onclick="openWA()">💬 פתח וואטסאפ</button>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">בחר מה לעשות עם הקובץ</div>
+    <button class="btn-green" onclick="openWA()">💬 שלח בוואטסאפ</button>
+    <button class="btn-orange" onclick="reDownload()">⬇️ הורד שוב לטלפון</button>
   </div>
 
   <div class="note">לשימוש אישי בלבד</div>
 </div>
 
 <script>
-let vid=null,fmt='mp3',waPhone='';
+let vid=null,fmt='mp3',waPhone='',lastBlob=null,lastExt='mp3';
 
 function switchTab(t){
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='link')||(i===1&&t==='search')));
@@ -228,15 +230,10 @@ async function startDl(){
       throw new Error(err.error||'שגיאה');
     }
     const blob=await resp.blob();
+    lastExt=fmt==='mp3'?'mp3':'mp4';
+    lastBlob=blob;
     setProg(90,'שומר...');
-    const ext=fmt==='mp3'?'mp3':'mp4';
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;
-    a.download=(vid.title||'audio')+'.'+ext;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    triggerDownload(blob,lastExt);
     setProg(100,'הסתיים!');
     document.getElementById('success').classList.add('show');
     document.getElementById('success').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -247,6 +244,20 @@ async function startDl(){
   }
   btn.disabled=false;
   btn.innerHTML='⬇️ הורד ושלח לוואטסאפ';
+}
+
+function triggerDownload(blob,ext){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=(vid.title||'audio').replace(/[^\w\s]/g,'').trim()+'.'+ext;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function reDownload(){
+  if(lastBlob)triggerDownload(lastBlob,lastExt);
 }
 
 function openWA(){
