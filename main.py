@@ -1,16 +1,19 @@
-from flask import Flask, request, jsonify, send_file, Response
+from flask import Flask, request, jsonify, Response
 import os
 import re
-import tempfile
 import requests
 
 app = Flask(__name__)
 
 INVIDIOUS_INSTANCES = [
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
+    'https://invidious.io.lol',
+    'https://invidious.fdn.fr',
+    'https://invidious.slipfox.xyz',
+    'https://inv.tux.pizza',
+    'https://invidious.privacyredirect.com',
     'https://yt.drgnz.club',
-    'https://invidious.privacydev.net',
+    'https://vid.puffyan.us',
+    'https://invidious.lunar.icu',
 ]
 
 def sanitize(name):
@@ -19,48 +22,12 @@ def sanitize(name):
 def get_invidious(path, params=None):
     for inst in INVIDIOUS_INSTANCES:
         try:
-            r = requests.get(f"{inst}/api/v1/{path}", params=params, timeout=10)
+            r = requests.get(f"{inst}/api/v1/{path}", params=params, timeout=8)
             if r.status_code == 200:
                 return r.json()
         except:
             continue
     return None
-
-def get_audio_url(video_id):
-    data = get_invidious(f"videos/{video_id}")
-    if not data:
-        return None, None, None
-    
-    # מחפש audio format
-    formats = data.get('adaptiveFormats', [])
-    audio = [f for f in formats if f.get('type','').startswith('audio/')]
-    if not audio:
-        # fallback לformatStreams
-        streams = data.get('formatStreams', [])
-        if streams:
-            best = streams[0]
-            return best.get('url'), data.get('title','audio'), 'mp4'
-        return None, None, None
-    
-    # בוחר הכי טוב
-    best = sorted(audio, key=lambda x: x.get('bitrate', 0), reverse=True)[0]
-    return best.get('url'), data.get('title','audio'), 'webm'
-
-def get_video_url(video_id):
-    data = get_invidious(f"videos/{video_id}")
-    if not data:
-        return None, None
-    
-    streams = data.get('formatStreams', [])
-    # בוחר 480p או פחות
-    for q in ['480p', '360p', '240p', '144p']:
-        for s in streams:
-            if s.get('qualityLabel') == q:
-                return s.get('url'), data.get('title','video')
-    
-    if streams:
-        return streams[-1].get('url'), data.get('title','video')
-    return None, None
 
 @app.route('/')
 def index():
@@ -85,6 +52,17 @@ def search():
     except Exception as ex:
         return jsonify({'error': str(ex)}), 500
 
+@app.route('/ping')
+def ping():
+    results = []
+    for inst in INVIDIOUS_INSTANCES:
+        try:
+            r = requests.get(f"{inst}/api/v1/search?q=test&type=video", timeout=5)
+            results.append({'instance': inst, 'status': r.status_code, 'ok': r.status_code==200})
+        except Exception as e:
+            results.append({'instance': inst, 'status': 'error', 'ok': False, 'error': str(e)})
+    return jsonify(results)
+
 @app.route('/download')
 def download():
     vid = request.args.get('id', '')
@@ -93,37 +71,57 @@ def download():
         return jsonify({'error': 'missing id'}), 400
 
     try:
+        data = get_invidious(f"videos/{vid}")
+        if not data:
+            return jsonify({'error': 'לא נמצא סרטון'}), 500
+
+        title = sanitize(data.get('title', 'audio'))
+        url = None
+        ext = 'mp4'
+
         if fmt == 'mp3':
-            url, title, ext = get_audio_url(vid)
-        else:
-            url, title = get_video_url(vid)
-            ext = 'mp4'
+            formats = data.get('adaptiveFormats', [])
+            audio = [f for f in formats if 'audio' in f.get('type', '')]
+            if audio:
+                best = sorted(audio, key=lambda x: x.get('bitrate', 0), reverse=True)[0]
+                url = best.get('url')
+                ext = 'webm'
+
+        if not url:
+            streams = data.get('formatStreams', [])
+            for q in ['360p', '480p', '240p', '144p']:
+                for s in streams:
+                    if s.get('qualityLabel') == q:
+                        url = s.get('url')
+                        ext = 'mp4'
+                        break
+                if url:
+                    break
+            if not url and streams:
+                url = streams[-1].get('url')
+                ext = 'mp4'
 
         if not url:
             return jsonify({'error': 'לא נמצא קובץ להורדה'}), 500
 
-        title = sanitize(title or 'audio')
-
-        # Stream מ-Invidious לclient
         headers = {'User-Agent': 'Mozilla/5.0', 'Range': 'bytes=0-'}
         r = requests.get(url, headers=headers, stream=True, timeout=30)
 
         if not r.ok:
-            return jsonify({'error': f'שגיאה בהורדה: {r.status_code}'}), 500
+            return jsonify({'error': f'שגיאה: {r.status_code}'}), 500
 
-        # בדיקת גודל
         content_length = r.headers.get('Content-Length')
         if content_length and int(content_length) > 20 * 1024 * 1024:
             return jsonify({'error': 'הקובץ גדול מ-20MB'}), 400
 
-        mime = 'audio/webm' if ext == 'webm' else ('video/mp4' if ext == 'mp4' else 'audio/mpeg')
+        mime = 'audio/webm' if ext == 'webm' else 'video/mp4'
 
         def generate():
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     yield chunk
 
-        response = Response(
+        return Response(
             generate(),
             mimetype=mime,
             headers={
@@ -131,7 +129,6 @@ def download():
                 'Content-Length': content_length or '',
             }
         )
-        return response
 
     except Exception as ex:
         return jsonify({'error': str(ex)}), 500
