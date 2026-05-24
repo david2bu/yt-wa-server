@@ -52,6 +52,7 @@ input::placeholder{color:var(--muted)}
 .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;margin-left:6px;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .note{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+.optional{font-size:11px;color:var(--muted);margin-top:4px}
 </style>
 </head>
 <body>
@@ -99,14 +100,14 @@ input::placeholder{color:var(--muted)}
       <button class="fmt" id="f-mp4" onclick="setFmt('mp4')">🎬 MP4<br><small>וידאו</small></button>
     </div>
     <div style="margin-top:14px">
-      <div class="lbl">מספר וואטסאפ</div>
+      <div class="lbl">מספר וואטסאפ <span class="optional">(אופציונלי)</span></div>
       <div class="phone-row">
         <select id="cc" style="min-width:90px">
           <option value="972">🇮🇱 +972</option>
           <option value="1">🇺🇸 +1</option>
           <option value="44">🇬🇧 +44</option>
         </select>
-        <input id="phone" type="tel" placeholder="05X-XXXXXXX" style="flex:1" />
+        <input id="phone" type="tel" placeholder="05X-XXXXXXX (לא חובה)" style="flex:1" />
       </div>
     </div>
     <div id="status-box" class="status-box">
@@ -122,8 +123,8 @@ input::placeholder{color:var(--muted)}
     <div style="font-size:36px;margin-bottom:8px">✅</div>
     <div style="font-size:15px;font-weight:700;margin-bottom:4px">הקובץ הורד!</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:14px">בחר מה לעשות עם הקובץ</div>
-    <button class="btn-green" onclick="openWA()">💬 שלח בוואטסאפ</button>
-    <button class="btn-orange" onclick="reDownload()">⬇️ הורד שוב לטלפון</button>
+    <button class="btn-orange" onclick="reDownload()">⬇️ הורד לטלפון</button>
+    <button id="wa-btn" class="btn-green" onclick="openWA()" style="display:none">💬 שלח בוואטסאפ</button>
     <button class="btn-gray" onclick="resetApp()">🔄 הורדה חדשה</button>
   </div>
 
@@ -212,10 +213,10 @@ async function doSearch(){
 
 async function startDl(){
   if(!vid)return alert('בחר סרטון');
+
   let phone=document.getElementById('phone').value.replace(/\D/g,'');
-  if(!phone)return alert('הכנס מספר טלפון');
   if(phone.startsWith('0'))phone=phone.slice(1);
-  waPhone=document.getElementById('cc').value+phone;
+  waPhone=phone?document.getElementById('cc').value+phone:'';
 
   const btn=document.getElementById('dl-btn');
   btn.disabled=true;
@@ -237,6 +238,11 @@ async function startDl(){
     setProg(90,'שומר...');
     triggerDownload(blob,lastExt);
     setProg(100,'הסתיים!');
+
+    // הצג כפתור וואטסאפ רק אם הוזן טלפון
+    const waBtn=document.getElementById('wa-btn');
+    waBtn.style.display=waPhone?'block':'none';
+
     document.getElementById('success').classList.add('show');
     document.getElementById('success').scrollIntoView({behavior:'smooth',block:'nearest'});
   }catch(e){
@@ -263,6 +269,7 @@ function reDownload(){
 }
 
 function openWA(){
+  if(!waPhone)return;
   window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent('📎 '+(vid?.title||'')),'_blank');
 }
 
@@ -273,6 +280,7 @@ function resetApp(){
   document.getElementById('link-in').value='';
   document.getElementById('search-in').value='';
   document.getElementById('results').innerHTML='';
+  document.getElementById('phone').value='';
   setProg(0,'');
   window.scrollTo({top:0,behavior:'smooth'});
 }
