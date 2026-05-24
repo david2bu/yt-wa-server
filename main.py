@@ -6,7 +6,7 @@ import re
 
 app = Flask(__name__)
 
-COOKIES_FILE = os.path.join(os.path.dirname(__file__), 'youtube.com_cookies.txt')
+COOKIES_FILE = 'youtube.com_cookies.txt'
 
 def sanitize(name):
     return re.sub(r'[^\w\s-]', '', name).strip()[:50]
@@ -20,8 +20,12 @@ BASE_OPTS = {
 @app.route('/check')
 def check():
     exists = os.path.exists(COOKIES_FILE)
-    size = os.path.getsize(COOKIES_FILE) if exists else 0
-    return jsonify({'cookies_file': COOKIES_FILE, 'exists': exists, 'size': size})def index():
+    cwd = os.getcwd()
+    files = os.listdir(cwd)
+    return jsonify({'exists': exists, 'cwd': cwd, 'files': files})
+
+@app.route('/')
+def index():
     return open('index.html', encoding='utf-8').read()
 
 @app.route('/search')
