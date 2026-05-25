@@ -1,4 +1,3 @@
 flask
-yt-dlp==2025.5.22
-ffmpeg-python
+requests
 gunicorn
