@@ -15,29 +15,32 @@ PO_TOKEN = 'QUFFLUhqbXZwZG90VHVnYXZUdHpSLVVrUUc0WkdxZXlOUXw='
 def sanitize(name):
     return re.sub(r'[^\w\s-]', '', name).strip()[:50]
 
-BASE_OPTS = {
-    'quiet': True,
-    'no_warnings': True,
-    'cookiefile': COOKIES_FILE,
-    'extractor_args': {
-        'youtube': {
-            'visitor_data': VISITOR_DATA,
-            'po_token': [f'web+{PO_TOKEN}'],
-        }
-    },
-}
+def make_opts(extra={}):
+    opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'cookiefile': COOKIES_FILE,
+        'extractor_args': {
+            'youtube': {
+                'visitor_data': VISITOR_DATA,
+                'po_token': [f'web+{PO_TOKEN}'],
+            }
+        },
+    }
+    opts.update(extra)
+    return opts
 
 @app.route('/check')
 def check():
     exists = os.path.exists(COOKIES_FILE)
-    return jsonify({'exists': exists, 'cwd': os.getcwd(), 'files': os.listdir('.')})
+    return jsonify({'exists': exists, 'files': os.listdir('.')})
 
 @app.route('/formats')
 def formats():
     vid = request.args.get('id', '')
     url = f"https://www.youtube.com/watch?v={vid}"
     try:
-        with yt_dlp.YoutubeDL(BASE_OPTS) as ydl:
+        with yt_dlp.YoutubeDL(make_opts()) as ydl:
             info = ydl.extract_info(url, download=False)
         fmts = [{'id': f.get('format_id'), 'ext': f.get('ext'), 'note': f.get('format_note'), 'acodec': f.get('acodec'), 'vcodec': f.get('vcodec')} for f in info.get('formats', [])]
         return jsonify(fmts)
@@ -51,9 +54,8 @@ def index():
 @app.route('/search')
 def search():
     q = request.args.get('q', '')
-    ydl_opts = {**BASE_OPTS, 'extract_flat': True}
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(make_opts({'extract_flat': True})) as ydl:
             info = ydl.extract_info(f"ytsearch6:{q}", download=False)
         results = []
         for e in info.get('entries', []):
@@ -79,8 +81,7 @@ def download():
 
     try:
         if fmt == 'mp3':
-            ydl_opts = {
-                **BASE_OPTS,
+            ydl_opts = make_opts({
                 'format': '140/139/bestaudio',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
                 'postprocessors': [{
@@ -88,13 +89,12 @@ def download():
                     'preferredcodec': 'mp3',
                     'preferredquality': '128',
                 }],
-            }
+            })
         else:
-            ydl_opts = {
-                **BASE_OPTS,
+            ydl_opts = make_opts({
                 'format': '18/best',
                 'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-            }
+            })
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
