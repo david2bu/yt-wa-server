@@ -1,47 +1,16 @@
-from flask import Flask, request, jsonify, send_file
-import yt_dlp
+from flask import Flask, request, jsonify, send_file, Response
+import requests
 import os
-import tempfile
 import re
+import tempfile
 
 app = Flask(__name__)
 
-COOKIES_FILE = 'youtube.com_cookies.txt'
+RAPIDAPI_KEY = '1b10b50a2dmsh9a40f1f8b87f4dbp1c46b2jsn4b4f81f4b604'
+RAPIDAPI_HOST = 'youtube-mp3-audio-video-downloader.p.rapidapi.com'
 
 def sanitize(name):
     return re.sub(r'[^\w\s-]', '', name).strip()[:50]
-
-def base_opts():
-    return {
-        'quiet': True,
-        'no_warnings': True,
-        'cookiefile': COOKIES_FILE,
-    }
-
-@app.route('/check')
-def check():
-    exists = os.path.exists(COOKIES_FILE)
-    return jsonify({'exists': exists, 'files': os.listdir('.')})
-
-@app.route('/formats')
-def formats():
-    vid = request.args.get('id', '')
-    url = f"https://www.youtube.com/watch?v={vid}"
-    try:
-        with yt_dlp.YoutubeDL(base_opts()) as ydl:
-            info = ydl.extract_info(url, download=False)
-        fmts = []
-        for f in info.get('formats', []):
-            fmts.append({
-                'id': f.get('format_id'),
-                'ext': f.get('ext'),
-                'note': f.get('format_note'),
-                'acodec': f.get('acodec'),
-                'vcodec': f.get('vcodec'),
-            })
-        return jsonify(fmts)
-    except Exception as ex:
-        return jsonify({'error': str(ex)}), 500
 
 @app.route('/')
 def index():
@@ -51,17 +20,20 @@ def index():
 def search():
     q = request.args.get('q', '')
     try:
-        opts = base_opts()
-        opts['extract_flat'] = True
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(f"ytsearch6:{q}", download=False)
+        r = requests.get(
+            'https://youtube-mp3-audio-video-downloader.p.rapidapi.com/search',
+            headers={'X-RapidAPI-Key': RAPIDAPI_KEY, 'X-RapidAPI-Host': RAPIDAPI_HOST},
+            params={'q': q, 'hl': 'he', 'gl': 'IL'},
+            timeout=10
+        )
+        data = r.json()
         results = []
-        for e in info.get('entries', []):
+        for v in data.get('data', {}).get('videos', [])[:6]:
             results.append({
-                'id': e.get('id'),
-                'title': e.get('title'),
-                'duration': e.get('duration'),
-                'thumbnail': f"https://i.ytimg.com/vi/{e.get('id')}/mqdefault.jpg"
+                'id': v.get('videoId'),
+                'title': v.get('title'),
+                'duration': v.get('lengthSeconds'),
+                'thumbnail': v.get('thumbnail', {}).get('thumbnails', [{}])[-1].get('url', f"https://i.ytimg.com/vi/{v.get('videoId')}/mqdefault.jpg")
             })
         return jsonify(results)
     except Exception as ex:
@@ -74,46 +46,51 @@ def download():
     if not vid:
         return jsonify({'error': 'missing id'}), 400
 
-    tmpdir = tempfile.mkdtemp()
-    url = f"https://www.youtube.com/watch?v={vid}"
-
     try:
-        opts = base_opts()
-        opts['outtmpl'] = f'{tmpdir}/%(title)s.%(ext)s'
-
         if fmt == 'mp3':
-            opts['format'] = '140/139/bestaudio'
-            opts['postprocessors'] = [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '128',
-            }]
+            r = requests.get(
+                'https://youtube-mp3-audio-video-downloader.p.rapidapi.com/mp3',
+                headers={'X-RapidAPI-Key': RAPIDAPI_KEY, 'X-RapidAPI-Host': RAPIDAPI_HOST},
+                params={'id': vid, 'quality': '128'},
+                timeout=30
+            )
         else:
-            opts['format'] = '18/best'
+            r = requests.get(
+                'https://youtube-mp3-audio-video-downloader.p.rapidapi.com/mp4',
+                headers={'X-RapidAPI-Key': RAPIDAPI_KEY, 'X-RapidAPI-Host': RAPIDAPI_HOST},
+                params={'id': vid, 'quality': '360'},
+                timeout=30
+            )
 
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            title = sanitize(info.get('title', 'audio'))
+        data = r.json()
+        dl_url = data.get('link') or data.get('url') or data.get('downloadUrl')
 
-        files = os.listdir(tmpdir)
-        if not files:
-            return jsonify({'error': 'הורדה נכשלה'}), 500
+        if not dl_url:
+            return jsonify({'error': 'לא נמצא קישור להורדה', 'raw': data}), 500
 
-        filepath = os.path.join(tmpdir, files[0])
-        size = os.path.getsize(filepath)
+        # Stream הקובץ
+        file_r = requests.get(dl_url, stream=True, timeout=60)
+        content_length = file_r.headers.get('Content-Length')
 
-        if size > 20 * 1024 * 1024:
-            os.remove(filepath)
+        if content_length and int(content_length) > 20 * 1024 * 1024:
             return jsonify({'error': 'הקובץ גדול מ-20MB'}), 400
 
-        ext = files[0].split('.')[-1]
+        ext = 'mp3' if fmt == 'mp3' else 'mp4'
         mime = 'audio/mpeg' if ext == 'mp3' else 'video/mp4'
+        title = sanitize(data.get('title', 'audio'))
 
-        return send_file(
-            filepath,
+        def generate():
+            for chunk in file_r.iter_content(chunk_size=8192):
+                if chunk:
+                    yield chunk
+
+        return Response(
+            generate(),
             mimetype=mime,
-            as_attachment=True,
-            download_name=f"{title}.{ext}"
+            headers={
+                'Content-Disposition': f'attachment; filename="{title}.{ext}"',
+                'Content-Length': content_length or '',
+            }
         )
 
     except Exception as ex:
