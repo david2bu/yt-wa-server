@@ -8,6 +8,10 @@ app = Flask(__name__)
 
 COOKIES_FILE = 'youtube.com_cookies.txt'
 
+VISITOR_DATA = 'Cgt6bnR1Ml82UlFoQSisq9HQBjIKCgJJTBIEGgAgVWLfAgrcAjE4LllUPXpZcURvVnBxQVV0VFAwQTZfei0xV0lJU3dhc0lMaU5ibUxzRHdPRjQxdXBxdVdSMjRRUUZHT3hZSUx6SXFISnFJRHNsMGJPUkM1WDhNeHd3azVmZGUtRmEyZUwyY1NEUUlhZ2FGYVd5T1YwQ0lvZEprZUhTS2J5QjJVVk45Wk5XWTN6dVZzckVKQ3lCMV9rdFo0X2g1a21RT3Q2dlcyQnFsel96UnQ3TzBabUV1UFhSc0VQcGE2ZkdkVVBabk0zSVBlRWNOWS10eURFM0hJeklCYjd3eGlSbEtac1JUSTQwZl9nMlJ2V0lCT3BKdEVKNEtHZkVjR0tHUXpWNlZpY0cza3FESjFsZGdlZDBBNG1xWHZCbnhYLUhDMDExU1lKcVQxalF4U3hrY1BjaTNLcVBHdUczcXhCU3NTMXJCaExoQUJocjZBOS03V2FuQ21neGdJelVZUQ%3D%3D'
+
+PO_TOKEN = 'QUFFLUhqbXZwZG90VHVnYXZUdHpSLVVrUUc0WkdxZXlOUXw='
+
 def sanitize(name):
     return re.sub(r'[^\w\s-]', '', name).strip()[:50]
 
@@ -15,6 +19,12 @@ BASE_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'cookiefile': COOKIES_FILE,
+    'extractor_args': {
+        'youtube': {
+            'visitor_data': VISITOR_DATA,
+            'po_token': [f'web+{PO_TOKEN}'],
+        }
+    },
 }
 
 @app.route('/check')
