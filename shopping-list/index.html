@@ -163,7 +163,7 @@ let me = '';
 try { me = localStorage.getItem('shop.me') || ''; } catch (e) {}
 
 async function api(path, method = 'GET', body) {
-  const r = await fetch('/shop/api' + path, {
+  const r = await fetch('/api' + path, {
     method, headers: body ? {'Content-Type': 'application/json'} : {},
     body: body ? JSON.stringify(body) : undefined
   });

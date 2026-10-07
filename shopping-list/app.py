@@ -1,15 +1,15 @@
 """ניהול קניות לבית - רשימה משותפת, הצעות מההיסטוריה והערכת מחיר."""
-from flask import Blueprint, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import sqlite3
 import os
 
-shop = Blueprint('shop', __name__)
+app = Flask(__name__)
 
 DATA_DIR = os.environ.get('DATA_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'))
 DB_PATH = os.path.join(DATA_DIR, 'shop.db')
-HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shop.html')
+HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
 
 URGENCIES = ('urgent', 'regular')  # urgent = לשבת הקרובה, regular = שוטף
 
@@ -137,12 +137,12 @@ def build_suggestions(conn, products):
     return suggestions[:24]
 
 
-@shop.route('/shop')
+@app.route('/')
 def shop_page():
     return send_file(HTML_PATH)
 
 
-@shop.route('/shop/api/state')
+@app.route('/api/state')
 def state():
     with db() as conn:
         members = [dict(r) for r in conn.execute('SELECT * FROM members ORDER BY name')]
@@ -167,7 +167,7 @@ def state():
     })
 
 
-@shop.route('/shop/api/items', methods=['POST'])
+@app.route('/api/items', methods=['POST'])
 def add_item():
     data = request.get_json(force=True) or {}
     name = clean_name(data.get('name'))
@@ -198,7 +198,7 @@ def add_item():
         return jsonify({'id': cur.lastrowid, 'merged': False}), 201
 
 
-@shop.route('/shop/api/items/<int:item_id>', methods=['PATCH'])
+@app.route('/api/items/<int:item_id>', methods=['PATCH'])
 def update_item(item_id):
     data = request.get_json(force=True) or {}
     fields = {}
@@ -230,14 +230,14 @@ def update_item(item_id):
     return jsonify({'ok': True})
 
 
-@shop.route('/shop/api/items/<int:item_id>', methods=['DELETE'])
+@app.route('/api/items/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
     with db() as conn:
         conn.execute('DELETE FROM items WHERE id = ?', (item_id,))
     return jsonify({'ok': True})
 
 
-@shop.route('/shop/api/items/finish', methods=['POST'])
+@app.route('/api/items/finish', methods=['POST'])
 def finish_shopping():
     """מסיים קנייה: הפריטים שנקנו עוברים להיסטוריה ונעלמים מהרשימה."""
     with db() as conn:
@@ -245,7 +245,7 @@ def finish_shopping():
     return jsonify({'archived': cur.rowcount})
 
 
-@shop.route('/shop/api/products', methods=['POST'])
+@app.route('/api/products', methods=['POST'])
 def add_product():
     data = request.get_json(force=True) or {}
     name = clean_name(data.get('name'))
@@ -262,7 +262,7 @@ def add_product():
     return jsonify({'id': product['id']}), 201
 
 
-@shop.route('/shop/api/products/<int:product_id>', methods=['PATCH'])
+@app.route('/api/products/<int:product_id>', methods=['PATCH'])
 def update_product(product_id):
     data = request.get_json(force=True) or {}
     fields = {}
@@ -291,14 +291,14 @@ def update_product(product_id):
     return jsonify({'ok': True})
 
 
-@shop.route('/shop/api/products/<int:product_id>', methods=['DELETE'])
+@app.route('/api/products/<int:product_id>', methods=['DELETE'])
 def delete_product(product_id):
     with db() as conn:
         conn.execute('DELETE FROM products WHERE id = ?', (product_id,))
     return jsonify({'ok': True})
 
 
-@shop.route('/shop/api/members', methods=['POST'])
+@app.route('/api/members', methods=['POST'])
 def add_member():
     name = clean_name((request.get_json(force=True) or {}).get('name'))
     if not name:
@@ -308,8 +308,12 @@ def add_member():
     return jsonify({'ok': True}), 201
 
 
-@shop.route('/shop/api/members/<int:member_id>', methods=['DELETE'])
+@app.route('/api/members/<int:member_id>', methods=['DELETE'])
 def delete_member(member_id):
     with db() as conn:
         conn.execute('DELETE FROM members WHERE id = ?', (member_id,))
     return jsonify({'ok': True})
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
