@@ -3,8 +3,10 @@ import requests
 import os
 import re
 import tempfile
+from shop import shop
 
 app = Flask(__name__)
+app.register_blueprint(shop)
 
 RAPIDAPI_KEY = '1b10b50a2dmsh9a40f1f8b87f4dbp1c46b2jsn4b4f81f4b604'
 RAPIDAPI_HOST = 'youtube-mp3-audio-video-downloader.p.rapidapi.com'

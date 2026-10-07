@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f766e">
+<title>רשימת קניות</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f5f1;--surface:#fff;--border:#e4e1d8;--text:#1f2421;--muted:#7a7f78;--brand:#0f766e;--brand-soft:#e3f2ef;--urgent:#c2410c;--urgent-soft:#fdebe1;--danger:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--bg:#121513;--surface:#1b1f1d;--border:#2b312e;--text:#eef1ee;--muted:#8f978f;--brand:#2dd4bf;--brand-soft:#173430;--urgent:#fb923c;--urgent-soft:#3a2416;--danger:#f87171}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Rubik',sans-serif;min-height:100vh;padding:16px 16px 120px}
+.wrap{max-width:560px;margin:0 auto}
+h1{font-size:22px;font-weight:900;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.lbl{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:999px;padding:7px 13px;font:500 14px 'Rubik',sans-serif;cursor:pointer}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip.add{border-style:dashed;color:var(--muted)}
+input{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--text);font:400 15px 'Rubik',sans-serif;outline:none;min-width:0}
+input:focus{border-color:var(--brand)}
+.row{display:flex;gap:8px}
+.grow{flex:1}
+.qty{width:64px;text-align:center}
+.btn{border:none;border-radius:10px;padding:12px 14px;font:700 15px 'Rubik',sans-serif;cursor:pointer}
+.btn-reg{background:var(--brand);color:#fff}
+.btn-urg{background:var(--urgent);color:#fff}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:12px}
+.tab{flex:1;padding:9px;border:none;background:transparent;color:var(--muted);font:500 14px 'Rubik',sans-serif;border-radius:9px;cursor:pointer}
+.tab.on{background:var(--brand-soft);color:var(--brand);font-weight:700}
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 8px;font-weight:700}
+.sec-h small{font-weight:400;color:var(--muted);font-size:13px}
+.item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.item:last-child{border-bottom:none}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:transparent;flex-shrink:0;cursor:pointer;color:#fff;font-size:14px}
+.item.bought .check{background:var(--brand);border-color:var(--brand)}
+.item.bought .name{text-decoration:line-through;color:var(--muted)}
+.info{flex:1;min-width:0}
+.name{font-weight:500;font-size:15px}
+.meta{font-size:12px;color:var(--muted);margin-top:2px}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap}
+.tag.urgent{background:var(--urgent-soft);border-color:transparent;color:var(--urgent);font-weight:700}
+.icon{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px}
+.empty{color:var(--muted);font-size:14px;text-align:center;padding:14px 0}
+.sum{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.sum-in{max-width:560px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sum b{font-size:20px}
+.sum .parts{font-size:12px;color:var(--muted);text-align:left}
+.sug{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border)}
+.sug:last-child{border-bottom:none}
+.sug .mini{padding:7px 10px;font-size:13px;border-radius:8px}
+.due{color:var(--urgent);font-weight:700}
+.prod{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.prod:last-child{border-bottom:none}
+.prod .price{width:84px;text-align:center;padding:8px}
+.star{background:none;border:none;font-size:20px;cursor:pointer;color:var(--border)}
+.star.on{color:#eab308}
+.hidden{display:none!important}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:10;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.hint{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛒 רשימת קניות</h1>
+
+  <div class="card">
+    <div class="lbl">מי מזמין?</div>
+    <div class="chips" id="members"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="list">רשימה</button>
+    <button class="tab" data-tab="sug">הצעות</button>
+    <button class="tab" data-tab="prod">מוצרים ומחירים</button>
+  </div>
+
+  <!-- רשימה -->
+  <section id="tab-list">
+    <div class="card">
+      <form id="addForm" autocomplete="off">
+        <div class="row">
+          <input id="itemName" class="grow" list="productNames" placeholder="מה צריך לקנות?" required>
+          <input id="itemQty" class="qty" type="number" min="0.1" step="any" value="1" inputmode="decimal" aria-label="כמות">
+        </div>
+        <input id="itemNote" style="width:100%;margin-top:8px" placeholder="הערה (לא חובה) — למשל: 3% / מותג מסוים">
+        <div class="row" style="margin-top:8px">
+          <button type="submit" class="btn btn-urg grow" data-urgency="urgent">🕯️ דחוף לשבת</button>
+          <button type="submit" class="btn btn-reg grow" data-urgency="regular">🔄 לשוטף</button>
+        </div>
+      </form>
+      <datalist id="productNames"></datalist>
+      <div id="quickSug" class="hidden" style="margin-top:12px">
+        <div class="lbl">אולי חסר? (לחיצה מוסיפה לשוטף, לחיצה ארוכה — לשבת)</div>
+        <div class="chips" id="quickChips"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-h"><span>🕯️ לשבת הקרובה</span><small id="shabbatDate"></small></div>
+      <div id="urgentList"></div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><span>🔄 שוטף</span><small id="regularCount"></small></div>
+      <div id="regularList"></div>
+    </div>
+    <div class="card" id="boughtCard">
+      <div class="sec-h"><span>✅ נקנה</span>
+        <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px" id="finishBtn">סיימתי קנייה</button>
+      </div>
+      <div id="boughtList"></div>
+    </div>
+  </section>
+
+  <!-- הצעות -->
+  <section id="tab-sug" class="hidden">
+    <div class="card">
+      <div class="lbl">דברים שקונים בקביעות ולא ברשימה כרגע</div>
+      <div id="sugList"></div>
+      <div class="hint">ההצעות נבנות מההיסטוריה (מוצר שנקנה פעמיים ומעלה) וממוצרים שסומנו ⭐ קבועים. "הגיע הזמן" = עבר יותר זמן מהמרווח הרגיל בין קניות.</div>
+    </div>
+  </section>
+
+  <!-- מוצרים -->
+  <section id="tab-prod" class="hidden">
+    <div class="card">
+      <div class="lbl">הוספת מוצר קבוע</div>
+      <form id="prodForm" class="row" autocomplete="off">
+        <input id="prodName" class="grow" placeholder="שם מוצר" required>
+        <input id="prodPrice" class="qty" style="width:84px" type="number" min="0" step="0.01" inputmode="decimal" placeholder="₪">
+        <button class="btn btn-reg">הוסף</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="lbl">⭐ = מוצר קבוע (תמיד יוצע) · מחיר ליחידה בש"ח, נשמר אוטומטית</div>
+      <input id="prodFilter" style="width:100%;margin-bottom:6px" placeholder="חיפוש...">
+      <div id="prodList"></div>
+    </div>
+  </section>
+</div>
+
+<div class="sum">
+  <div class="sum-in">
+    <div><div style="font-size:12px;color:var(--muted)">הערכת מחיר לקנייה</div><b id="sumTotal">₪0</b></div>
+    <div class="parts" id="sumParts"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => '₪' + (Math.round(n * 10) / 10).toLocaleString('he-IL');
+const times = n => n === 1 ? 'נקנה פעם אחת' : `נקנה ${n} פעמים`;
+const fmtQty = q => Number.isInteger(q) ? q : +q.toFixed(2);
+let S = {members: [], products: [], items: [], suggestions: []};
+let me = '';
+try { me = localStorage.getItem('shop.me') || ''; } catch (e) {}
+
+async function api(path, method = 'GET', body) {
+  const r = await fetch('/shop/api' + path, {
+    method, headers: body ? {'Content-Type': 'application/json'} : {},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'שגיאה');
+  return data;
+}
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+async function load() {
+  try { S = await api('/state'); render(); } catch (e) { toast('אין חיבור לשרת'); }
+}
+
+function nextShabbat() {
+  const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7));
+  return d.toLocaleDateString('he-IL', {weekday: 'short', day: 'numeric', month: 'numeric'});
+}
+
+function daysAgo(n) {
+  if (n == null) return '';
+  if (n === 0) return 'נקנה היום';
+  if (n === 1) return 'נקנה אתמול';
+  return `נקנה לפני ${n} ימים`;
+}
+
+function render() {
+  // מי מזמין
+  if (me && !S.members.some(m => m.name === me)) me = '';
+  $('#members').innerHTML = S.members.map(m =>
+    `<button class="chip ${m.name === me ? 'on' : ''}" data-member="${esc(m.name)}" data-id="${m.id}">${esc(m.name)}</button>`
+  ).join('') + `<button class="chip add" id="addMember">+ הוספת שם</button>`;
+
+  $('#productNames').innerHTML = S.products.map(p => `<option value="${esc(p.name)}">`).join('');
+
+  const open = S.items.filter(i => i.status === 'open');
+  const bought = S.items.filter(i => i.status === 'bought');
+  const urgent = open.filter(i => i.urgency === 'urgent');
+  const regular = open.filter(i => i.urgency === 'regular');
+
+  $('#shabbatDate').textContent = nextShabbat();
+  $('#regularCount').textContent = regular.length ? `${regular.length} פריטים` : '';
+  $('#urgentList').innerHTML = urgent.length ? urgent.map(itemRow).join('') : '<div class="empty">אין פריטים דחופים</div>';
+  $('#regularList').innerHTML = regular.length ? regular.map(itemRow).join('') : '<div class="empty">הרשימה ריקה</div>';
+  $('#boughtCard').classList.toggle('hidden', !bought.length);
+  $('#boughtList').innerHTML = bought.map(itemRow).join('');
+
+  // הערכת מחיר
+  const cost = list => list.reduce((s, i) => s + (i.price != null ? i.price * i.qty : 0), 0);
+  const noPrice = open.filter(i => i.price == null).length;
+  $('#sumTotal').textContent = money(cost(open));
+  $('#sumParts').innerHTML = `לשבת ${money(cost(urgent))} · שוטף ${money(cost(regular))}` +
+    (noPrice ? `<br>${noPrice} פריטים ללא מחיר` : '');
+
+  // הצעות
+  const sug = S.suggestions;
+  $('#quickSug').classList.toggle('hidden', !sug.length);
+  $('#quickChips').innerHTML = sug.slice(0, 10).map(s =>
+    `<button class="chip" data-quick="${esc(s.name)}">${s.due ? '⏰ ' : ''}${esc(s.name)}</button>`).join('');
+  $('#sugList').innerHTML = sug.length ? sug.map(s => `
+    <div class="sug">
+      <div class="info">
+        <div class="name">${s.is_regular ? '⭐ ' : ''}${esc(s.name)}</div>
+        <div class="meta">${s.due ? '<span class="due">הגיע הזמן · </span>' : ''}${s.times_bought ? times(s.times_bought) : 'מוצר קבוע'}${s.avg_interval ? ` · בערך כל ${s.avg_interval} ימים` : ''}${s.days_since != null ? ' · ' + daysAgo(s.days_since) : ''}${s.price != null ? ' · ' + money(s.price) : ''}</div>
+      </div>
+      <button class="btn btn-urg mini" data-sug="${esc(s.name)}" data-urgency="urgent">לשבת</button>
+      <button class="btn btn-reg mini" data-sug="${esc(s.name)}" data-urgency="regular">לשוטף</button>
+    </div>`).join('') : '<div class="empty">עדיין אין מספיק היסטוריה. אחרי כמה קניות יופיעו כאן הצעות.</div>';
+
+  renderProducts();
+}
+
+function itemRow(i) {
+  const est = i.price != null ? money(i.price * i.qty) : '';
+  const by = i.status === 'bought' ? (i.bought_by ? `נקנה ע"י ${esc(i.bought_by)}` : '') : (i.requested_by ? `הזמין/ה: ${esc(i.requested_by)}` : '');
+  return `
+  <div class="item ${i.status}" data-item="${i.id}">
+    <button class="check" data-act="toggle" aria-label="סימון">${i.status === 'bought' ? '✓' : ''}</button>
+    <div class="info">
+      <div class="name">${esc(i.name)}${i.qty !== 1 ? ` <small style="color:var(--muted)">× ${fmtQty(i.qty)}</small>` : ''}</div>
+      <div class="meta">${[i.note && esc(i.note), by, est].filter(Boolean).join(' · ')}</div>
+    </div>
+    ${i.status === 'open' ? `<button class="tag ${i.urgency === 'urgent' ? 'urgent' : ''}" data-act="urgency">${i.urgency === 'urgent' ? 'לשבת' : 'שוטף'}</button>` : ''}
+    <button class="icon" data-act="delete" aria-label="מחיקה">✕</button>
+  </div>`;
+}
+
+function renderProducts() {
+  const f = $('#prodFilter').value.trim();
+  const list = S.products.filter(p => !f || p.name.includes(f));
+  $('#prodList').innerHTML = list.length ? list.map(p => `
+    <div class="prod" data-prod="${p.id}">
+      <button class="star ${p.is_regular ? 'on' : ''}" data-act="star" aria-label="קבוע">★</button>
+      <div class="info">
+        <div class="name">${esc(p.name)}</div>
+        <div class="meta">${p.times_bought ? times(p.times_bought) : 'עוד לא נקנה'}</div>
+      </div>
+      <input class="price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="₪ מחיר" value="${p.price ?? ''}" data-act="price">
+      <button class="icon" data-act="delprod" aria-label="מחיקה">🗑</button>
+    </div>`).join('') : '<div class="empty">אין מוצרים</div>';
+}
+
+// --- אירועים ---
+function requireMe() {
+  if (me) return true;
+  toast('בחרו קודם מי מזמין 👆');
+  $('#members').scrollIntoView({behavior: 'smooth', block: 'center'});
+  return false;
+}
+
+async function addItem(name, urgency, qty = 1, note = '') {
+  if (!requireMe()) return false;
+  try {
+    const r = await api('/items', 'POST', {name, urgency, qty, note, requested_by: me});
+    toast(r.merged ? `${name} כבר ברשימה — עודכנה הכמות` : `נוסף: ${name}`);
+    await load();
+    return true;
+  } catch (e) { toast(e.message); return false; }
+}
+
+let submitUrgency = 'regular';
+document.querySelectorAll('#addForm [data-urgency]').forEach(b => b.addEventListener('click', () => submitUrgency = b.dataset.urgency));
+$('#addForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const urgency = e.submitter?.dataset.urgency || submitUrgency;
+  const ok = await addItem($('#itemName').value.trim(), urgency, $('#itemQty').value, $('#itemNote').value.trim());
+  if (ok) { $('#itemName').value = ''; $('#itemQty').value = 1; $('#itemNote').value = ''; $('#itemName').focus(); }
+});
+
+$('#members').addEventListener('click', async e => {
+  if (e.target.id === 'addMember') {
+    const name = prompt('שם:');
+    if (!name || !name.trim()) return;
+    try { await api('/members', 'POST', {name}); me = name.trim().replace(/\s+/g, ' '); try { localStorage.setItem('shop.me', me); } catch (_) {} load(); }
+    catch (err) { toast(err.message); }
+    return;
+  }
+  const chip = e.target.closest('[data-member]');
+  if (!chip) return;
+  me = chip.dataset.member;
+  try { localStorage.setItem('shop.me', me); } catch (_) {}
+  render();
+});
+$('#members').addEventListener('contextmenu', async e => {
+  const chip = e.target.closest('[data-member]');
+  if (!chip) return;
+  e.preventDefault();
+  if (confirm(`להסיר את ${chip.dataset.member} מהרשימה?`)) { await api('/members/' + chip.dataset.id, 'DELETE'); load(); }
+});
+
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const row = btn.closest('[data-item]');
+  if (row) {
+    const id = row.dataset.item, item = S.items.find(i => i.id == id);
+    try {
+      if (btn.dataset.act === 'toggle') {
+        await api('/items/' + id, 'PATCH', item.status === 'open' ? {status: 'bought', by: me} : {status: 'open'});
+      } else if (btn.dataset.act === 'urgency') {
+        await api('/items/' + id, 'PATCH', {urgency: item.urgency === 'urgent' ? 'regular' : 'urgent'});
+      } else if (btn.dataset.act === 'delete') {
+        if (!confirm(`למחוק את ${item.name}?`)) return;
+        await api('/items/' + id, 'DELETE');
+      }
+      load();
+    } catch (err) { toast(err.message); }
+    return;
+  }
+  const prow = btn.closest('[data-prod]');
+  if (prow) {
+    const id = prow.dataset.prod, p = S.products.find(x => x.id == id);
+    try {
+      if (btn.dataset.act === 'star') await api('/products/' + id, 'PATCH', {is_regular: !p.is_regular});
+      if (btn.dataset.act === 'delprod') {
+        if (!confirm(`למחוק את ${p.name} כולל ההיסטוריה שלו?`)) return;
+        await api('/products/' + id, 'DELETE');
+      }
+      load();
+    } catch (err) { toast(err.message); }
+  }
+});
+
+$('#prodList').addEventListener('change', async e => {
+  if (e.target.dataset.act !== 'price') return;
+  const id = e.target.closest('[data-prod]').dataset.prod;
+  try { await api('/products/' + id, 'PATCH', {price: e.target.value}); toast('המחיר נשמר'); load(); }
+  catch (err) { toast(err.message); }
+});
+$('#prodFilter').addEventListener('input', renderProducts);
+$('#prodForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    await api('/products', 'POST', {name: $('#prodName').value, price: $('#prodPrice').value, is_regular: true});
+    $('#prodName').value = ''; $('#prodPrice').value = ''; toast('המוצר נשמר'); load();
+  } catch (err) { toast(err.message); }
+});
+
+$('#sugList').addEventListener('click', e => {
+  const b = e.target.closest('[data-sug]');
+  if (b) addItem(b.dataset.sug, b.dataset.urgency);
+});
+
+// צ'יפים מהירים: לחיצה = שוטף, לחיצה ארוכה = לשבת
+let pressTimer = null, longPressed = false;
+$('#quickChips').addEventListener('pointerdown', e => {
+  const b = e.target.closest('[data-quick]'); if (!b) return;
+  longPressed = false;
+  pressTimer = setTimeout(() => { longPressed = true; addItem(b.dataset.quick, 'urgent'); }, 550);
+});
+['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('#quickChips').addEventListener(ev, () => clearTimeout(pressTimer)));
+$('#quickChips').addEventListener('contextmenu', e => e.preventDefault());
+$('#quickChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-quick]');
+  if (b && !longPressed) addItem(b.dataset.quick, 'regular');
+});
+
+$('#finishBtn').addEventListener('click', async () => {
+  if (!confirm('לסיים את הקנייה? הפריטים שסומנו יעברו להיסטוריה.')) return;
+  const r = await api('/items/finish', 'POST'); toast(`${r.archived} פריטים עברו להיסטוריה`); load();
+});
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  ['list', 'sug', 'prod'].forEach(n => $('#tab-' + n).classList.toggle('hidden', n !== t.dataset.tab));
+}));
+
+load();
+// סנכרון בין המכשירים
+setInterval(() => { if (!document.hidden && !document.activeElement?.matches('input')) load(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
