@@ -1,7 +1,8 @@
 """ניהול קניות לבית - רשימה משותפת, הצעות מההיסטוריה והערכת מחיר."""
 from flask import Flask, request, jsonify, send_file
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import sqlite3
 import os
 
@@ -11,6 +12,11 @@ DATA_DIR = os.environ.get('DATA_DIR', os.path.join(os.path.dirname(os.path.abspa
 DB_PATH = os.path.join(DATA_DIR, 'shop.db')
 HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
 
+try:
+    ISRAEL = ZoneInfo('Asia/Jerusalem')
+except Exception:  # שרת בלי מסד אזורי זמן
+    ISRAEL = timezone(timedelta(hours=3))
+SHABBAT_WEEKS = 8  # כמה שבתות אחורה בודקים
 URGENCIES = ('urgent', 'regular')  # urgent = לשבת הקרובה, regular = שוטף
 
 SCHEMA = """
@@ -257,6 +263,53 @@ def delete_item(item_id):
     with db() as conn:
         conn.execute('DELETE FROM items WHERE id = ?', (item_id,))
     return jsonify({'ok': True})
+
+
+def shabbat_of(iso):
+    """השבת שאליה שייכת הזמנה: שבת באותו שבוע (מוצאי שבת כבר שייך לשבת הבאה)."""
+    d = datetime.fromisoformat(iso).astimezone(ISRAEL).date()
+    return d + timedelta(days=(5 - d.weekday()) % 7)
+
+
+@app.route('/api/shabbat-plan')
+def shabbat_plan():
+    """רשימה מוצעת לשבת לפי מה שהוזמן כ'דחוף לשבת' בשבתות הקודמות."""
+    with db() as conn:
+        rows = conn.execute("""
+            SELECT i.product_id, i.qty, i.created_at, p.name, p.price, p.category
+            FROM items i JOIN products p ON p.id = i.product_id
+            WHERE i.urgency = 'urgent' AND i.status = 'bought'
+        """).fetchall()
+        on_list = {r['product_id'] for r in conn.execute(
+            "SELECT DISTINCT product_id FROM items WHERE status = 'open'")}
+
+    this_shabbat = shabbat_of(datetime.now(timezone.utc).isoformat())
+    weeks = sorted({shabbat_of(r['created_at']) for r in rows if shabbat_of(r['created_at']) < this_shabbat},
+                   reverse=True)[:SHABBAT_WEEKS]
+    stats = {}
+    for r in rows:
+        week = shabbat_of(r['created_at'])
+        if week not in weeks:
+            continue
+        st = stats.setdefault(r['product_id'], {
+            'product_id': r['product_id'], 'name': r['name'], 'price': r['price'],
+            'category': r['category'], 'weeks': set(), 'qtys': []})
+        st['weeks'].add(week)
+        st['qtys'].append(r['qty'])
+
+    plan = []
+    for st in stats.values():
+        qtys = sorted(st['qtys'])
+        plan.append({
+            'product_id': st['product_id'], 'name': st['name'], 'price': st['price'],
+            'category': st['category'],
+            'qty': qtys[len(qtys) // 2],
+            'times': len(st['weeks']),
+            'last_week': max(st['weeks']) == weeks[0],
+            'on_list': st['product_id'] in on_list,
+        })
+    plan.sort(key=lambda x: (-x['times'], not x['last_week'], x['name']))
+    return jsonify({'weeks': len(weeks), 'shabbat': this_shabbat.isoformat(), 'items': plan})
 
 
 @app.route('/api/items/finish', methods=['POST'])
