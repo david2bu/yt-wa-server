@@ -64,6 +64,9 @@ def init_db():
     with db() as conn:
         conn.execute('PRAGMA journal_mode = WAL')
         conn.executescript(SCHEMA)
+        cols = {r['name'] for r in conn.execute('PRAGMA table_info(products)')}
+        if 'category' not in cols:
+            conn.execute("ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT ''")
 
 
 init_db()
@@ -73,17 +76,25 @@ def clean_name(value):
     return ' '.join(str(value or '').split())[:80]
 
 
+def to_number(value):
+    return float(str(value).replace(',', '.').strip())
+
+
 def parse_price(value):
-    if value in (None, ''):
+    if value is None or str(value).strip() == '':
         return None
-    price = float(value)
+    price = to_number(value)
     if price < 0:
         raise ValueError('price must be >= 0')
     return round(price, 2)
 
 
+def clean_category(value):
+    return ' '.join(str(value or '').split())[:40]
+
+
 def parse_qty(value):
-    qty = float(value if value not in (None, '') else 1)
+    qty = to_number(value) if value is not None and str(value).strip() != '' else 1.0
     if qty <= 0:
         raise ValueError('qty must be > 0')
     return qty
@@ -153,7 +164,7 @@ def state():
             GROUP BY p.id ORDER BY p.is_regular DESC, times_bought DESC, p.name
         """).fetchall()
         items = [dict(r) for r in conn.execute("""
-            SELECT i.*, p.name, p.price
+            SELECT i.*, p.name, p.price, p.category
             FROM items i JOIN products p ON p.id = i.product_id
             WHERE i.archived = 0
             ORDER BY i.status, CASE i.urgency WHEN 'urgent' THEN 0 ELSE 1 END, i.created_at
@@ -180,9 +191,18 @@ def add_item():
         return jsonify({'error': 'כמות לא תקינה'}), 400
     note = str(data.get('note') or '').strip()[:200]
     requested_by = clean_name(data.get('requested_by'))
+    try:
+        price = parse_price(data.get('price'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'מחיר לא תקין'}), 400
 
     with db() as conn:
         product = get_or_create_product(conn, name)
+        if price is not None:
+            conn.execute('UPDATE products SET price = ? WHERE id = ?', (price, product['id']))
+        if 'category' in data:
+            conn.execute('UPDATE products SET category = ? WHERE id = ?',
+                         (clean_category(data['category']), product['id']))
         existing = conn.execute(
             "SELECT * FROM items WHERE product_id = ? AND status = 'open' AND archived = 0",
             (product['id'],)).fetchone()
@@ -213,6 +233,8 @@ def update_item(item_id):
             return jsonify({'error': 'כמות לא תקינה'}), 400
     if 'note' in data:
         fields['note'] = str(data['note'] or '').strip()[:200]
+    if 'requested_by' in data:
+        fields['requested_by'] = clean_name(data['requested_by'])
     if 'status' in data:
         if data['status'] == 'bought':
             fields.update(status='bought', bought_at=now(), bought_by=clean_name(data.get('by')))
@@ -259,6 +281,9 @@ def add_product():
         product = get_or_create_product(conn, name)
         conn.execute('UPDATE products SET price = COALESCE(?, price), is_regular = ? WHERE id = ?',
                      (price, 1 if data.get('is_regular', True) else 0, product['id']))
+        if 'category' in data:
+            conn.execute('UPDATE products SET category = ? WHERE id = ?',
+                         (clean_category(data['category']), product['id']))
     return jsonify({'id': product['id']}), 201
 
 
@@ -273,6 +298,8 @@ def update_product(product_id):
             return jsonify({'error': 'מחיר לא תקין'}), 400
     if 'is_regular' in data:
         fields['is_regular'] = 1 if data['is_regular'] else 0
+    if 'category' in data:
+        fields['category'] = clean_category(data['category'])
     if 'name' in data:
         name = clean_name(data['name'])
         if not name:
