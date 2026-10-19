@@ -8,6 +8,7 @@ import threading
 import os
 
 import push
+import wa
 
 app = Flask(__name__)
 
@@ -58,6 +59,10 @@ CREATE TABLE IF NOT EXISTS push_subs (
     member TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS wa_sent (
+    requested_by TEXT PRIMARY KEY,
+    last_item_id INTEGER NOT NULL
+);
 """
 
 
@@ -89,6 +94,10 @@ def init_db():
 
 init_db()
 VAPID_KEY = push.load_vapid_key(DATA_DIR)
+SITE_URL = os.environ.get('SITE_URL', 'https://shop.judit.live')
+# מי מקבל וואטסאפ: "דוד=9725XXXXXXXX,עינב=9725YYYYYYYY" (בקובץ הסביבה של השירות, לא בקוד)
+WA_NOTIFY = dict(pair.split('=', 1) for pair in os.environ.get('WA_NOTIFY', '').replace(' ', '').split(',') if '=' in pair)
+WA_DELAY = int(os.environ.get('WA_DELAY', '120'))
 
 
 def clean_name(value):
@@ -236,6 +245,10 @@ def add_item():
             (product['id'], qty, note, urgency, requested_by, now()))
     threading.Thread(target=notify_new_items, args=(requested_by, str(data.get('from_endpoint') or '')),
                      daemon=True).start()
+    if WA_NOTIFY:
+        timer = threading.Timer(WA_DELAY, wa_notify, args=(requested_by, cur.lastrowid))
+        timer.daemon = True
+        timer.start()
     return jsonify({'id': cur.lastrowid, 'merged': False}), 201
 
 
@@ -255,8 +268,7 @@ def notify_new_items(requested_by, from_endpoint=''):
         """, (requested_by, since)).fetchall()
     if not recent:
         return
-    names = [r['name'] + (f' ×{r["qty"]:g}' if r['qty'] != 1 else '') + (' 🕯️' if r['urgency'] == 'urgent' else '')
-             for r in recent]
+    names = recent_items_text(recent)
     body = ', '.join(names[:6]) + (f' ועוד {len(names) - 6}' if len(names) > 6 else '')
     who = requested_by or 'מישהו'
     message = {
@@ -276,6 +288,43 @@ def notify_new_items(requested_by, from_endpoint=''):
                 conn.execute('DELETE FROM push_subs WHERE id = ?', (sub['id'],))
         elif status >= 400:
             app.logger.warning('push rejected: %s', status)
+
+
+def recent_items_text(rows):
+    names = [r['name'] + (f' ×{r["qty"]:g}' if r['qty'] != 1 else '') + (' 🕯️' if r['urgency'] == 'urgent' else '')
+             for r in rows]
+    return names
+
+
+def wa_notify(requested_by, item_id):
+    """וואטסאפ: הודעה אחת אחרי שהמזמין סיים להוסיף (WA_DELAY שניות בלי פריט חדש ממנו)."""
+    try:
+        with db() as conn:
+            latest = conn.execute(
+                "SELECT MAX(id) AS id FROM items WHERE requested_by = ? AND status = 'open' AND archived = 0",
+                (requested_by,)).fetchone()['id']
+            if latest != item_id:  # נוסף פריט אחרי זה - הטיימר שלו ישלח
+                return
+            sent = conn.execute('SELECT last_item_id FROM wa_sent WHERE requested_by = ?', (requested_by,)).fetchone()
+            rows = conn.execute("""
+                SELECT p.name, i.qty, i.urgency FROM items i JOIN products p ON p.id = i.product_id
+                WHERE i.requested_by = ? AND i.status = 'open' AND i.archived = 0 AND i.id > ?
+                ORDER BY i.id
+            """, (requested_by, sent['last_item_id'] if sent else 0)).fetchall()
+            conn.execute("""INSERT INTO wa_sent (requested_by, last_item_id) VALUES (?, ?)
+                            ON CONFLICT(requested_by) DO UPDATE SET last_item_id = excluded.last_item_id""",
+                         (requested_by, item_id))
+        if not rows:
+            return
+        names = recent_items_text(rows)
+        who = requested_by or 'מישהו'
+        text = (f'🛒 חדש ברשימה מ{who}' + (f' ({len(names)} פריטים)' if len(names) > 1 else '') + ':' +
+                '\n' + '\n'.join(f'• {n}' for n in names) + f'\n\n{SITE_URL}')
+        for member, phone in WA_NOTIFY.items():
+            if member != requested_by:
+                wa.send(phone, text)
+    except Exception as e:
+        app.logger.warning('whatsapp notify failed: %s', e)
 
 
 @app.route('/icon.png')
