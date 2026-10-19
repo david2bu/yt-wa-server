@@ -4,13 +4,17 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import sqlite3
+import threading
 import os
+
+import push
 
 app = Flask(__name__)
 
 DATA_DIR = os.environ.get('DATA_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'))
 DB_PATH = os.path.join(DATA_DIR, 'shop.db')
-HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HTML_PATH = os.path.join(BASE_DIR, 'index.html')
 
 try:
     ISRAEL = ZoneInfo('Asia/Jerusalem')
@@ -46,6 +50,14 @@ CREATE TABLE IF NOT EXISTS items (
 );
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status, archived);
 CREATE INDEX IF NOT EXISTS idx_items_product ON items(product_id);
+CREATE TABLE IF NOT EXISTS push_subs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    member TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -76,6 +88,7 @@ def init_db():
 
 
 init_db()
+VAPID_KEY = push.load_vapid_key(DATA_DIR)
 
 
 def clean_name(value):
@@ -221,7 +234,87 @@ def add_item():
         cur = conn.execute(
             'INSERT INTO items (product_id, qty, note, urgency, requested_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
             (product['id'], qty, note, urgency, requested_by, now()))
-        return jsonify({'id': cur.lastrowid, 'merged': False}), 201
+    threading.Thread(target=notify_new_items, args=(requested_by, str(data.get('from_endpoint') or '')),
+                     daemon=True).start()
+    return jsonify({'id': cur.lastrowid, 'merged': False}), 201
+
+
+def notify_new_items(requested_by, from_endpoint=''):
+    """פוש לשאר בני הבית: מה שהמזמין הוסיף בחצי השעה האחרונה, בהתראה אחת שמתעדכנת."""
+    since = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat(timespec='seconds')
+    with db() as conn:
+        subs = [dict(r) for r in conn.execute(
+            "SELECT * FROM push_subs WHERE (member != ? OR ? = '') AND endpoint != ?",
+            (requested_by, requested_by, from_endpoint))]
+        if not subs:
+            return
+        recent = conn.execute("""
+            SELECT p.name, i.qty, i.urgency FROM items i JOIN products p ON p.id = i.product_id
+            WHERE i.requested_by = ? AND i.status = 'open' AND i.archived = 0 AND i.created_at >= ?
+            ORDER BY i.created_at DESC
+        """, (requested_by, since)).fetchall()
+    if not recent:
+        return
+    names = [r['name'] + (f' ×{r["qty"]:g}' if r['qty'] != 1 else '') + (' 🕯️' if r['urgency'] == 'urgent' else '')
+             for r in recent]
+    body = ', '.join(names[:6]) + (f' ועוד {len(names) - 6}' if len(names) > 6 else '')
+    who = requested_by or 'מישהו'
+    message = {
+        'title': f'🛒 {who}: ' + ('פריט חדש ברשימה' if len(names) == 1 else f'{len(names)} פריטים חדשים'),
+        'body': body,
+        'tag': f'new-{requested_by}',
+        'url': '/',
+    }
+    for sub in subs:
+        try:
+            status = push.send(VAPID_KEY, sub, message)
+        except Exception as e:  # רשת וכו' - לא מפילים את השרת בגלל התראה
+            app.logger.warning('push failed: %s', e)
+            continue
+        if status in (404, 410):  # המכשיר ביטל את ההרשמה
+            with db() as conn:
+                conn.execute('DELETE FROM push_subs WHERE id = ?', (sub['id'],))
+        elif status >= 400:
+            app.logger.warning('push rejected: %s', status)
+
+
+@app.route('/icon.png')
+def icon():
+    return send_file(os.path.join(BASE_DIR, 'icon.png'), mimetype='image/png', max_age=86400)
+
+
+@app.route('/sw.js')
+def service_worker():
+    return send_file(os.path.join(BASE_DIR, 'sw.js'), mimetype='text/javascript', max_age=0)
+
+
+@app.route('/api/push/key')
+def push_key():
+    return jsonify({'key': push.b64url(push.public_bytes(VAPID_KEY))})
+
+
+@app.route('/api/push/subscribe', methods=['POST'])
+def push_subscribe():
+    data = request.get_json(force=True) or {}
+    sub = data.get('subscription') or {}
+    keys = sub.get('keys') or {}
+    endpoint = str(sub.get('endpoint') or '')
+    if not endpoint.startswith('https://') or not keys.get('p256dh') or not keys.get('auth'):
+        return jsonify({'error': 'הרשמה לא תקינה'}), 400
+    with db() as conn:
+        conn.execute("""INSERT INTO push_subs (endpoint, p256dh, auth, member, created_at) VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth,
+                        member = excluded.member""",
+                     (endpoint, keys['p256dh'], keys['auth'], clean_name(data.get('member')), now()))
+    return jsonify({'ok': True})
+
+
+@app.route('/api/push/unsubscribe', methods=['POST'])
+def push_unsubscribe():
+    endpoint = str((request.get_json(force=True) or {}).get('endpoint') or '')
+    with db() as conn:
+        conn.execute('DELETE FROM push_subs WHERE endpoint = ?', (endpoint,))
+    return jsonify({'ok': True})
 
 
 @app.route('/api/items/<int:item_id>', methods=['PATCH'])
