@@ -1,0 +1,8 @@
+# Caddy gets and renews the HTTPS certificate for your domain automatically.
+{$DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 200MB
+	}
+	reverse_proxy wa-bot:3000
+}

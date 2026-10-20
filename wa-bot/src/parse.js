@@ -1,38 +1,10 @@
-// Pure helpers for reading what the user typed - kept separate so they're easy to test.
+// Pure helpers for reading what people typed - kept separate so they're easy to test.
 
-const ALL = ['הכל', 'הכול', 'כולם', 'all', '*']
 const CANCEL = ['ביטול', 'בטל', 'cancel', 'stop']
 
 export const isCancel = (text) => CANCEL.includes(text.trim().toLowerCase())
 
-/**
- * "1" | "1,3" | "1 3 5" | "2-4" | "הכל" -> array of 0-based indexes, or null if it isn't a selection.
- * Out-of-range numbers make the whole selection invalid (returns { invalid: [...] }).
- */
-export function parseSelection(text, count) {
-  const t = text.trim().toLowerCase()
-  if (!t) return null
-  if (ALL.includes(t)) return { indexes: [...Array(count).keys()] }
-  if (!/^[\d\s,\-–]+$/.test(t)) return null
-
-  const picked = new Set()
-  const invalid = []
-  for (const part of t.split(/[\s,]+/).filter(Boolean)) {
-    const range = part.match(/^(\d+)[-–](\d+)$/)
-    const [from, to] = range ? [Number(range[1]), Number(range[2])] : [Number(part), Number(part)]
-    if (!Number.isInteger(from) || !Number.isInteger(to)) return null
-    for (let n = Math.min(from, to); n <= Math.max(from, to); n++) {
-      if (n < 1 || n > count) invalid.push(n)
-      else picked.add(n - 1)
-    }
-  }
-  if (invalid.length) return { invalid }
-  return picked.size ? { indexes: [...picked].sort((a, b) => a - b) } : null
-}
-
-export const looksLikeSelection = (text) => /^[\d\s,\-–]+$/.test(text.trim()) || ALL.includes(text.trim().toLowerCase())
-
-// "!אשר 0501234567 1,2" -> { cmd: 'אשר', args: ['0501234567', '1,2'] }
+// "!סטטוס now" -> { cmd: 'סטטוס', args: ['now'], rest: 'now' }
 export function parseCommand(text) {
   const m = text.trim().match(/^[!/](\S+)\s*([\s\S]*)$/)
   if (!m) return null
@@ -51,4 +23,12 @@ export function extensionFor(mimetype, filename) {
   if (fromName) return fromName.toLowerCase()
   const base = (mimetype || '').split(';')[0].trim()
   return MIME_EXT[base] || base.split('/')[1]?.replace(/[^a-z0-9]/gi, '').slice(0, 8) || 'bin'
+}
+
+export function kindFor(mimetype) {
+  const m = (mimetype || '').toLowerCase()
+  if (m.startsWith('image/') && m !== 'image/gif' && m !== 'image/svg+xml') return 'image'
+  if (m.startsWith('video/')) return 'video'
+  if (m.startsWith('audio/')) return 'audio'
+  return 'document'
 }

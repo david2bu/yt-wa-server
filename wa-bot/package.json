@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "baileys": "7.0.0-rc14",
+    "busboy": "^1.6.0",
     "pino": "^10.4.0",
     "qrcode": "^1.5.4"
   }

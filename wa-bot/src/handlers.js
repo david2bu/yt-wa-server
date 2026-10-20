@@ -3,12 +3,13 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import { downloadMediaMessage, getContentType, isJidGroup, normalizeMessageContent } from 'baileys'
-import { config, normalizePhone } from './config.js'
+import { config } from './config.js'
 import { logger, waLogger } from './logger.js'
 import * as store from './db.js'
 import { wa, bareJid } from './whatsapp.js'
-import { reply, kick, removeFileIfUnused } from './queue.js'
-import { parseSelection, parseCommand, looksLikeSelection, isCancel, extensionFor } from './parse.js'
+import { reply } from './queue.js'
+import { autoSchedule, formatWhen } from './scheduler.js'
+import { parseCommand, isCancel, extensionFor } from './parse.js'
 import { personalCommands } from './commands/personal.js'
 
 const MEDIA_TYPES = {
@@ -17,8 +18,6 @@ const MEDIA_TYPES = {
   audioMessage: 'audio',
   documentMessage: 'document',
 }
-
-const menuTimers = new Map()
 
 export async function handleMessage(msg) {
   try {
@@ -39,52 +38,31 @@ async function route(msg) {
   const type = getContentType(content)
   const text = (content?.conversation || content?.extendedTextMessage?.text || '').trim()
 
-  // ---- owner commands ----
   if (ctx.isOwner && text) {
     const cmd = parseCommand(text)
     if (cmd && (await runOwnerCommand(ctx, cmd))) return
   }
 
-  // ---- gatekeeping ----
-  if (!ctx.isOwner && !store.isApproved(ctx.phone)) {
-    if (store.shouldNotifyStranger(ctx.phone)) {
-      reply(ctx.jid, 'שלום! אינך מורשה עדיין לשלוח דרך הבוט. בקשתך הועברה למנהל.')
-      notifyOwners(
-        `📩 ${msg.pushName || 'משתמש לא מוכר'} (${ctx.phone}) כתב/ה לבוט ואינו/ה מורשה/ית.\n` +
-          `לאישור: !אשר ${ctx.phone} <מספרי קבוצות>   (רשימה: !קבוצות)`,
-      )
+  let customer = store.getCustomer(ctx.phone)
+  if (!customer && ctx.isOwner) customer = store.saveCustomer(ctx.phone, { name: 'אני' })
+  if (!customer?.active) {
+    const notify = store.noteStranger(ctx.phone, { name: msg.pushName, chatJid: ctx.jid, text: text || `[${type}]` })
+    if (notify) {
+      reply(ctx.jid, 'שלום! המספר שלך עדיין לא רשום לשירות. העברתי את הפנייה למנהל.')
+      notifyOwners(`📩 ${msg.pushName || 'מישהו'} (${ctx.phone}) כתב/ה לבוט ואינו/ה רשום/ה. אפשר להוסיף אותו/ה באתר, בלשונית "לקוחות".`)
     }
     return
   }
-  store.upsertUser(ctx.phone, { name: msg.pushName || null, chatJid: ctx.jid })
+  store.saveCustomer(ctx.phone, { chatJid: ctx.jid, name: customer.name ? undefined : msg.pushName || undefined })
 
-  // ---- incoming file ----
-  if (MEDIA_TYPES[type]) {
-    await receiveMedia(ctx, msg, content, type)
-    return
-  }
+  if (MEDIA_TYPES[type]) return receiveMedia(ctx, msg, content, type)
   if (!text) return
 
-  // ---- user commands ----
-  const cmd = parseCommand(text)
-  if (cmd && ['עזרה', 'help'].includes(cmd.cmd)) return reply(ctx.jid, userHelp())
-  if (text === 'עזרה') return reply(ctx.jid, userHelp())
+  if (['עזרה', '!עזרה', 'help'].includes(text.toLowerCase()) && !ctx.isOwner) return reply(ctx.jid, customerHelp())
+  if (isCancel(text)) return cancelLatest(ctx)
+  if (['סטטוס', 'מה מתוזמן', 'מתוזמן'].includes(text)) return reply(ctx.jid, customerStatus(ctx.phone))
 
-  const drafts = store.getDrafts(ctx.phone)
-  if (isCancel(text)) {
-    discardDrafts(ctx.phone)
-    return reply(ctx.jid, drafts.length ? '🗑️ בוטל. הקבצים לא יישלחו.' : 'אין כרגע שום דבר ממתין.')
-  }
-
-  if (drafts.length && looksLikeSelection(text)) return chooseGroups(ctx, text, drafts)
-
-  if (looksLikeSelection(text)) {
-    return reply(ctx.jid, 'אין קבצים שממתינים לשליחה. שלחו קובץ (או הודעת טקסט) ואז בחרו קבוצה.')
-  }
-
-  // plain text becomes a message to post, just like a file
-  store.addDraft(ctx.phone, { kind: 'text', caption: text })
-  scheduleMenu(ctx)
+  store.addItem(store.openSubmission(ctx.phone).id, { kind: 'text', caption: text })
 }
 
 // Works out who wrote and whether they're an owner. Returns null for messages we should ignore.
@@ -97,8 +75,7 @@ async function identify(msg) {
     // Only the "message yourself" chat counts, so the owner can control a bot running on their own number.
     const isSelfChat = bareJid(jid) === bareJid(me?.id) || (me?.lid && bareJid(jid) === bareJid(me.lid))
     if (!isSelfChat) return null
-    // Skip the bot's own replies (they also show up here)
-    await new Promise((r) => setTimeout(r, 1500))
+    await new Promise((r) => setTimeout(r, 1500)) // skip the bot's own replies, which also arrive here
     if (store.getSentMessage(msg.key.id)) return null
     return { jid, phone: myPhone, isOwner: true }
   }
@@ -117,11 +94,9 @@ async function receiveMedia(ctx, msg, content, type) {
   if (size > config.maxFileBytes) {
     return reply(ctx.jid, `⚠️ הקובץ גדול מדי (${Math.round(size / 1048576)}MB). המקסימום הוא ${config.maxFileBytes / 1048576}MB.`)
   }
-
-  fs.mkdirSync(config.mediaDir, { recursive: true })
-  const ext = extensionFor(media.mimetype, media.fileName)
-  const file = path.join(config.mediaDir, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`)
-
+  // open the submission first, so a caption-less picture followed by text stays one post
+  const sub = store.openSubmission(ctx.phone)
+  const file = newMediaPath(extensionFor(media.mimetype, media.fileName))
   try {
     const stream = await downloadMediaMessage(msg, 'stream', {}, {
       logger: waLogger,
@@ -133,189 +108,116 @@ async function receiveMedia(ctx, msg, content, type) {
     logger.error({ err: err.message }, 'media download failed')
     return reply(ctx.jid, '⚠️ לא הצלחתי לקבל את הקובץ. נסו לשלוח אותו שוב.')
   }
-
-  store.addDraft(ctx.phone, {
+  store.addItem(sub.id, {
     kind: MEDIA_TYPES[type],
     path: file,
     mimetype: media.mimetype,
     filename: media.fileName,
     caption: media.caption,
+    size: fs.statSync(file).size,
   })
-  scheduleMenu(ctx)
 }
 
-// Wait a moment so that sending 10 files produces one question, not 10
-function scheduleMenu(ctx) {
-  clearTimeout(menuTimers.get(ctx.phone))
-  menuTimers.set(
-    ctx.phone,
-    setTimeout(() => {
-      menuTimers.delete(ctx.phone)
-      sendMenu(ctx)
-    }, 2500),
-  )
+export function newMediaPath(ext) {
+  fs.mkdirSync(config.mediaDir, { recursive: true })
+  return path.join(config.mediaDir, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`)
 }
 
-function sendMenu(ctx, prefix = '') {
-  const drafts = store.getDrafts(ctx.phone)
-  if (!drafts.length) return
-  const groups = store.groupsForUser(ctx.phone, ctx.isOwner)
-  if (!groups.length) {
-    discardDrafts(ctx.phone)
-    return reply(ctx.jid, 'אין לך כרגע קבוצות פעילות לשליחה. פנה/י למנהל.')
-  }
-  const what = drafts.length === 1 ? describe(drafts[0]) : `${drafts.length} פריטים`
-  const list = groups.map((g, i) => `*${i + 1}.* ${g.subject}`).join('\n')
-  const hint = groups.length === 1 ? 'השב *1* לשליחה' : 'השב מספר, כמה מספרים (1,3) או *הכל*'
-  reply(ctx.jid, `${prefix}📎 קיבלתי ${what}. לאן לשלוח?\n\n${list}\n\n${hint}. *ביטול* לביטול.`)
-}
-
-function chooseGroups(ctx, text, drafts) {
-  const groups = store.groupsForUser(ctx.phone, ctx.isOwner)
-  const sel = parseSelection(text, groups.length)
-  if (!sel || sel.invalid) {
-    const bad = sel?.invalid ? `אין קבוצה מספר ${sel.invalid.join(', ')}. ` : ''
-    return sendMenu(ctx, `❓ ${bad}`)
-  }
-  const chosen = sel.indexes.map((i) => groups[i])
-  const batchId = crypto.randomUUID()
-  for (const g of chosen) {
-    for (const d of drafts) {
-      store.enqueue({
-        batchId, phone: ctx.phone, toJid: g.jid,
-        kind: d.kind, path: d.path, mimetype: d.mimetype, filename: d.filename, caption: d.caption,
-      })
+/**
+ * Called every few seconds: a submission nobody added to for `groupWindowMs` is complete.
+ * It gets the customer's next free slot (if they have slots) and the customer is told when it will go out.
+ */
+export function finalizeSubmissions() {
+  for (const sub of store.collectingSubmissions()) {
+    if (Date.now() - sub.updated_at < config.groupWindowMs) continue
+    if (!store.getItems(sub.id).length) {
+      store.deleteSubmission(sub.id)
+      continue
+    }
+    store.setSubmissionState(sub.id, 'ready')
+    const placed = autoSchedule(sub.id)
+    const customer = store.getCustomer(sub.phone)
+    const to = customer?.chat_jid || `${sub.phone}@s.whatsapp.net`
+    if (sub.source !== 'whatsapp') continue
+    if (placed) {
+      const names = placed.groups.map((g) => store.getGroup(g)?.subject || g).join(', ')
+      reply(to, `✅ קיבלתי! יפורסם ${formatWhen(placed.sendAt)} ב: ${names}.\nלביטול: *ביטול*`)
+    } else {
+      reply(to, '✅ קיבלתי! המנהל יקבע את מועד הפרסום, ותקבל/י עדכון.')
     }
   }
-  store.clearDrafts(ctx.phone)
-  kick()
-  const count = chosen.length * drafts.length
-  reply(ctx.jid, `📤 בתור לשליחה (${count}) אל: ${chosen.map((g) => g.subject).join(', ')}.\nאעדכן כשיישלח.`)
 }
 
-function discardDrafts(phone) {
-  const drafts = store.getDrafts(phone)
-  store.clearDrafts(phone)
-  for (const d of drafts) removeFileIfUnused(d.path)
-}
-
-export function expireDrafts() {
-  for (const d of store.expiredDrafts(config.draftTtlMs)) {
-    store.deleteDraft(d.id)
-    removeFileIfUnused(d.path)
+function cancelLatest(ctx) {
+  const open = store.listSubmissions({ phone: ctx.phone, limit: 20 })
+    .find((s) => ['collecting', 'scheduled', 'unscheduled'].includes(s.status))
+  if (!open) return reply(ctx.jid, 'אין כרגע פרסום שממתין.')
+  if (open.status === 'collecting' || open.status === 'unscheduled') {
+    for (const p of store.deleteSubmission(open.id)) fs.rm(p, { force: true }, () => {})
+  } else {
+    store.cancelPendingDeliveries(open.id)
+    store.setSubmissionState(open.id, 'archived')
   }
+  reply(ctx.jid, '🗑️ הפרסום האחרון שלך בוטל.')
 }
 
-function describe(d) {
-  return { image: 'תמונה', video: 'סרטון', audio: 'קובץ שמע', document: `קובץ ${d.filename || ''}`.trim(), text: 'הודעת טקסט' }[d.kind]
+function customerStatus(phone) {
+  const upcoming = store.listSubmissions({ phone, limit: 50 }).filter((s) => s.status === 'scheduled')
+  if (!upcoming.length) return 'אין לך כרגע פרסומים מתוזמנים.'
+  const lines = upcoming.reverse().map((s) => {
+    const next = s.deliveries.find((d) => d.status === 'pending')
+    return `• ${formatWhen(next.send_at)}: ${summarize(s.items)}`
+  })
+  return `🗓️ *הפרסומים המתוזמנים שלך:*\n${lines.join('\n')}`
+}
+
+export function summarize(items) {
+  const text = items.find((i) => i.caption)?.caption
+  const files = items.filter((i) => i.kind !== 'text').length
+  const t = text ? `"${text.slice(0, 40)}${text.length > 40 ? '…' : ''}"` : ''
+  return [files ? `${files} קבצים` : '', t].filter(Boolean).join(' + ') || 'פרסום'
 }
 
 function notifyOwners(text) {
-  for (const p of config.ownerPhones) reply(store.getUser(p)?.chat_jid || `${p}@s.whatsapp.net`, text)
+  for (const p of config.ownerPhones) reply(store.getCustomer(p)?.chat_jid || `${p}@s.whatsapp.net`, text)
 }
 
-function userHelp() {
+function customerHelp() {
   return [
-    '🤖 *איך משתמשים בבוט*',
-    '1. שלחו לכאן קובץ, תמונה, סרטון או הודעת טקסט (אפשר כמה בבת אחת).',
-    '2. הבוט ישאל לאיזו קבוצה לשלוח. עונים במספר, כמה מספרים (1,3) או *הכל*.',
-    '3. כשההודעות יישלחו, הבוט יעדכן כאן.',
+    '🤖 *איך זה עובד*',
+    'שולחים לכאן את מה שרוצים לפרסם: תמונה, סרטון, קובץ או טקסט. אפשר כמה דברים ביחד, והם יפורסמו כפוסט אחד.',
+    'הבוט יחזיר את מועד הפרסום.',
     '',
-    '*ביטול* מבטל את מה שממתין.',
+    '*סטטוס*: מה מתוזמן לך',
+    '*ביטול*: ביטול הפרסום האחרון',
   ].join('\n')
 }
 
-// ---------------- owner commands ----------------
-
-const groupListText = (groups) => groups.map((g, i) => `*${i + 1}.* ${g.subject}`).join('\n')
-
-function resolveGroupArgs(arg) {
-  const groups = store.listGroups()
-  const sel = parseSelection(arg || '', groups.length)
-  if (!sel || sel.invalid) return { error: `מספרי קבוצות לא תקינים. ראו !קבוצות` }
-  return { groups: sel.indexes.map((i) => groups[i]) }
-}
+// ---------------- owner commands (the website is the main admin tool) ----------------
 
 const ownerCommands = [
   {
     names: ['עזרה', 'help'],
-    run: (ctx) =>
-      reply(ctx.jid, [
-        '🛠️ *פקודות מנהל*',
-        '!קבוצות - רשימת הקבוצות של הבוט (עם מספרים)',
-        '!אשר <טלפון> <מספרים|הכל> - אישור משתמש לקבוצות',
-        '!הסר <טלפון> [מספרים] - הסרת הרשאה (בלי מספרים = מחיקת המשתמש)',
-        '!משתמשים - מי מורשה ולאן',
-        '!סטטוס - מצב החיבור והתור',
-        '!נסה-שוב - שליחה חוזרת של הודעות שנכשלו',
-        ...personalCommands.map((c) => `!${c.names[0]} - ${c.description}`),
-        '',
-        'כמנהל אפשר גם פשוט לשלוח קבצים כמו כל משתמש.',
-      ].join('\n')),
-  },
-  {
-    names: ['קבוצות', 'groups'],
-    run: async (ctx) => {
-      await wa.refreshGroups()
-      const groups = store.listGroups()
-      reply(ctx.jid, groups.length ? `👥 *הקבוצות של הבוט:*\n${groupListText(groups)}` : 'הבוט לא חבר באף קבוצה.')
-    },
-  },
-  {
-    names: ['אשר', 'approve'],
-    run: (ctx, { args }) => {
-      const phone = normalizePhone(args[0])
-      if (!phone || args.length < 2) return reply(ctx.jid, 'שימוש: !אשר 0501234567 1,3   או   !אשר 0501234567 הכל')
-      const { groups, error } = resolveGroupArgs(args.slice(1).join(' '))
-      if (error) return reply(ctx.jid, error)
-      store.grant(phone, groups.map((g) => g.jid))
-      reply(ctx.jid, `✅ ${phone} מורשה לשלוח אל: ${groups.map((g) => g.subject).join(', ')}`)
-      const user = store.getUser(phone)
-      reply(user?.chat_jid || `${phone}@s.whatsapp.net`, `🎉 אושרת לשלוח קבצים דרך הבוט!\n\n${userHelp()}`)
-    },
-  },
-  {
-    names: ['הסר', 'revoke'],
-    run: (ctx, { args }) => {
-      const phone = normalizePhone(args[0])
-      if (!phone) return reply(ctx.jid, 'שימוש: !הסר 0501234567 [מספרי קבוצות]')
-      if (args.length < 2) {
-        store.revoke(phone)
-        return reply(ctx.jid, `🚫 ${phone} הוסר לגמרי.`)
-      }
-      const { groups, error } = resolveGroupArgs(args.slice(1).join(' '))
-      if (error) return reply(ctx.jid, error)
-      store.revoke(phone, groups.map((g) => g.jid))
-      reply(ctx.jid, `🚫 ההרשאה של ${phone} הוסרה מ: ${groups.map((g) => g.subject).join(', ')}`)
-    },
-  },
-  {
-    names: ['משתמשים', 'users'],
-    run: (ctx) => {
-      const users = store.listUsers().filter((u) => u.groups)
-      reply(ctx.jid, users.length
-        ? `👤 *משתמשים מורשים:*\n${users.map((u) => `• ${u.name || ''} ${u.phone}: ${u.groups}`).join('\n')}`
-        : 'אין עדיין משתמשים מורשים.')
-    },
+    run: (ctx) => reply(ctx.jid, [
+      '🛠️ *פקודות מנהל* (את רוב הניהול עושים באתר)',
+      '!סטטוס - מצב החיבור והשליחות',
+      '!קבוצות - רענון רשימת הקבוצות',
+      ...personalCommands.map((c) => `!${c.names[0]} - ${c.description}`),
+    ].join('\n')),
   },
   {
     names: ['סטטוס', 'status'],
     run: (ctx) => {
-      const q = store.queueStats()
+      const q = store.deliveryStats()
       const up = wa.openedAt ? Math.round((Date.now() - wa.openedAt) / 60000) : 0
-      reply(ctx.jid, [
-        `🟢 מחובר ${up} דקות`,
-        `📬 בתור: ${q.pending || 0} | נשלחו: ${q.sent || 0} | נכשלו: ${q.failed || 0}`,
-        `👥 קבוצות: ${store.listGroups().length}`,
-      ].join('\n'))
+      reply(ctx.jid, `🟢 מחובר ${up} דקות\n📬 מתוזמנים: ${q.pending || 0} | נשלחו: ${q.sent || 0} | נכשלו: ${q.failed || 0}`)
     },
   },
   {
-    names: ['נסה-שוב', 'retry'],
-    run: (ctx) => {
-      const n = store.retryFailed()
-      kick()
-      reply(ctx.jid, n ? `🔁 ${n} הודעות חזרו לתור.` : 'אין הודעות שנכשלו.')
+    names: ['קבוצות', 'groups'],
+    run: async (ctx) => {
+      const list = await wa.refreshGroups()
+      reply(ctx.jid, `👥 הבוט נמצא ב-${list.length} קבוצות.`)
     },
   },
   ...personalCommands,
@@ -324,7 +226,7 @@ const ownerCommands = [
 async function runOwnerCommand(ctx, cmd) {
   const command = ownerCommands.find((c) => c.names.includes(cmd.cmd))
   if (!command) {
-    reply(ctx.jid, `פקודה לא מוכרת: !${cmd.cmd}. לרשימת הפקודות: !עזרה`)
+    reply(ctx.jid, `פקודה לא מוכרת: !${cmd.cmd}. לרשימה: !עזרה`)
     return true
   }
   try {

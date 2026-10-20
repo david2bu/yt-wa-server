@@ -5,47 +5,56 @@ import { logger } from './logger.js'
 import * as store from './db.js'
 import { wa } from './whatsapp.js'
 import { startQueue } from './queue.js'
-import { handleMessage, expireDrafts } from './handlers.js'
+import { handleMessage, finalizeSubmissions } from './handlers.js'
 import { startWeb } from './web.js'
 
-if (!config.ownerPhones.length) logger.warn('OWNER_PHONES is empty - only the bot number itself (message-yourself chat) can run admin commands')
+if (!config.ownerPhones.length) logger.warn('OWNER_PHONES is empty - you will not get WhatsApp notifications about new people')
 
 wa.on('message', handleMessage)
 startWeb()
 startQueue()
 await wa.start()
 
-// Housekeeping every 5 minutes
+// Close posts the customer finished sending and put them in their slot
 setInterval(() => {
   try {
-    expireDrafts()
-    store.pruneSentMessages(3 * 24 * 60 * 60 * 1000)
-    store.pruneOldJobs(14 * 24 * 60 * 60 * 1000)
+    finalizeSubmissions()
+  } catch (err) {
+    logger.error({ err: err.stack }, 'finalize failed')
+  }
+}, 5000).unref()
+
+// Housekeeping every 30 minutes
+setInterval(() => {
+  try {
+    store.pruneSentMessages(3 * 86400_000)
+    for (const id of store.finishedSubmissionsBefore(Date.now() - config.retentionDays * 86400_000)) {
+      for (const p of store.deleteSubmission(id)) fs.rmSync(p, { force: true })
+    }
     removeOrphanMedia()
   } catch (err) {
     logger.error({ err: err.message }, 'housekeeping failed')
   }
-}, 5 * 60 * 1000).unref()
+}, 30 * 60_000).unref()
 
-// Watchdog: if we can't get back online on our own, exit and let docker/pm2/systemd start us fresh.
-// The queue is in SQLite, so nothing is lost.
+// Watchdog: if we can't get back online on our own, exit and let docker/pm2 start us fresh.
+// Everything is in SQLite, so nothing is lost.
 setInterval(() => {
   if (wa.isStuck()) {
     logger.fatal('offline for too long - restarting process')
     process.exit(1)
   }
-}, 60 * 1000).unref()
+}, 60_000).unref()
 
 function removeOrphanMedia() {
   if (!fs.existsSync(config.mediaDir)) return
-  const hourAgo = Date.now() - 60 * 60 * 1000
+  const hourAgo = Date.now() - 3600_000
   for (const name of fs.readdirSync(config.mediaDir)) {
     const file = path.join(config.mediaDir, name)
     if (fs.statSync(file).mtimeMs < hourAgo && !store.isPathInUse(file)) fs.rmSync(file, { force: true })
   }
 }
 
-// Never die silently on a stray error inside Baileys; log it and keep going
 process.on('unhandledRejection', (err) => logger.error({ err: err?.stack || String(err) }, 'unhandled rejection'))
 process.on('uncaughtException', (err) => {
   logger.fatal({ err: err.stack }, 'uncaught exception - exiting for a clean restart')
