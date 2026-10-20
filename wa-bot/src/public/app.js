@@ -125,16 +125,23 @@ const groupName = (jid) => state.groups.find((g) => g.jid === jid)?.subject || j
 
 // ---------------- login ----------------
 
-function showLogin() {
+let setupMode = false
+
+async function showLogin() {
   $('#app').hidden = true
   $('#login').hidden = false
+  setupMode = (await api('GET', '/api/setup').catch(() => ({}))).needsSetup
+  $('#login-form').classList.toggle('setup', !!setupMode)
+  $('#login-form').querySelector('button').textContent = setupMode ? 'שמירה וכניסה' : 'כניסה'
+  $('#login-form').password.autocomplete = setupMode ? 'new-password' : 'current-password'
 }
 
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   $('#login-error').textContent = ''
   try {
-    await api('POST', '/api/login', { password: e.target.password.value })
+    if (setupMode) await api('POST', '/api/setup', { password: e.target.password.value, phone: e.target.phone.value })
+    else await api('POST', '/api/login', { password: e.target.password.value })
     e.target.reset()
     start()
   } catch (err) {
@@ -190,6 +197,13 @@ async function loadBasics() {
 
 // ---------------- home ----------------
 
+function storageBanner() {
+  if (!state.status?.missingStorage) return null
+  return h('div', { class: 'card banner' },
+    h('strong', {}, '⚠️ חסר אחסון קבוע בשרת. '),
+    'בלי זה, בכל עדכון נמחקים החיבור לוואטסאפ והנתונים. ב-Railway: השירות ← Settings ← Volumes ← Add Volume (כל נתיב). זו הפעולה היחידה שצריך לעשות שם.')
+}
+
 async function renderHome() {
   await Promise.all([refreshStatus(), loadBasics()])
   const s = state.status
@@ -201,6 +215,7 @@ async function renderHome() {
     h('div', { class: 'n' }, n), h('div', { class: 'l' }, l))
 
   return h('div', {},
+    storageBanner(),
     s.state !== 'open' && h('div', { class: 'card', style: 'border-color:var(--danger);margin-bottom:16px' },
       h('div', { class: 'row spread' }, h('strong', {}, `⚠️ וואטסאפ: ${CONN[s.state] || s.state}`), h('button', { class: 'btn primary small', onclick: () => go('connection') }, 'לחיבור'))),
     h('div', { class: 'stats' },
@@ -505,7 +520,11 @@ async function renderNew() {
 async function renderConnection() {
   await Promise.all([refreshStatus(), loadBasics()])
   const s = state.status
+  const phoneInput = h('input', { type: 'tel', dir: 'ltr', value: (s.ownerPhones || []).map(phoneLabel).join(', '), placeholder: '050-1234567' })
+  const curPw = h('input', { type: 'password', autocomplete: 'current-password' })
+  const newPw = h('input', { type: 'password', autocomplete: 'new-password' })
   return h('div', { class: 'stack' },
+    storageBanner(),
     h('div', { class: 'card qr' },
       h('h2', {}, `וואטסאפ: ${CONN[s.state] || s.state}`),
       s.state === 'open' && h('p', { class: 'muted', dir: 'ltr' }, phoneLabel(s.me)),
@@ -518,7 +537,20 @@ async function renderConnection() {
         h('h2', { style: 'margin:0' }, `קבוצות (${state.groups.length})`),
         h('button', { class: 'btn small', onclick: action(() => api('POST', '/api/groups/refresh').then(() => 'הרשימה עודכנה')) }, 'רענון מוואטסאפ')),
       h('p', { class: 'muted small' }, 'כדי לשלוח לקבוצה, הבוט צריך להיות חבר בה. מוסיפים אותו כמו כל משתתף.'),
-      state.groups.length ? h('div', { class: 'checks' }, state.groups.map((g) => h('span', { class: 'chip' }, g.subject))) : h('p', { class: 'muted' }, 'אין עדיין קבוצות')))
+      state.groups.length ? h('div', { class: 'checks' }, state.groups.map((g) => h('span', { class: 'chip' }, g.subject))) : h('p', { class: 'muted' }, 'אין עדיין קבוצות')),
+    h('div', { class: 'card stack' },
+      h('h2', {}, 'הגדרות'),
+      h('div', { class: 'row', style: 'align-items:end' },
+        h('label', { style: 'flex:1;min-width:200px' }, 'המספר שלך (מקבל התראות ויכול לתת פקודות לבוט)', phoneInput),
+        h('button', { class: 'btn small', onclick: action(() => api('PUT', '/api/settings', { ownerPhone: phoneInput.value }).then(() => 'נשמר')) }, 'שמירה')),
+      h('div', { class: 'row', style: 'align-items:end' },
+        h('label', { style: 'flex:1;min-width:150px' }, 'סיסמה נוכחית', curPw),
+        h('label', { style: 'flex:1;min-width:150px' }, 'סיסמה חדשה', newPw),
+        h('button', { class: 'btn small', onclick: action(async () => {
+          await api('PUT', '/api/settings', { currentPassword: curPw.value, newPassword: newPw.value })
+          showLogin()
+          return 'הסיסמה הוחלפה. היכנסו עם הסיסמה החדשה.'
+        }, { rerender: false }) }, 'החלפת סיסמה'))))
 }
 
 // ---------------- boot ----------------

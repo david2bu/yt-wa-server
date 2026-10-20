@@ -1,5 +1,4 @@
 import path from 'node:path'
-import crypto from 'node:crypto'
 
 try {
   process.loadEnvFile()
@@ -20,15 +19,14 @@ export function normalizePhone(input) {
   return digits
 }
 
-const dataDir = path.resolve(process.env.DATA_DIR || './data')
+// On Railway, an attached volume is found automatically wherever it's mounted
+const dataDir = path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || './data')
 
 export const config = {
   ownerPhones: (process.env.OWNER_PHONES || '').split(',').map(normalizePhone).filter(Boolean),
   pairingPhone: normalizePhone(process.env.PAIRING_PHONE),
   port: num(process.env.PORT, 3000),
   adminPassword: process.env.ADMIN_PASSWORD || '',
-  // signs the login cookie; changing it logs everyone out
-  sessionSecret: process.env.SESSION_SECRET || crypto.createHash('sha256').update('wa-bot:' + (process.env.ADMIN_PASSWORD || '')).digest('hex'),
   sendDelayMin: num(process.env.SEND_DELAY_MIN, 3),
   sendDelayMax: num(process.env.SEND_DELAY_MAX, 7),
   maxFileBytes: num(process.env.MAX_FILE_MB, 100) * 1024 * 1024,
@@ -40,6 +38,8 @@ export const config = {
   retentionDays: num(process.env.RETENTION_DAYS, 60),
   maxAttempts: 6,
   watchdogMs: 10 * 60 * 1000,
+  // running on Railway without a volume = everything is lost on each deploy
+  missingStorage: !!process.env.RAILWAY_ENVIRONMENT_ID && !process.env.RAILWAY_VOLUME_MOUNT_PATH,
   logLevel: process.env.LOG_LEVEL || 'info',
   dataDir,
   authDir: path.join(dataDir, 'auth'),

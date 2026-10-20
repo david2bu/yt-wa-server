@@ -8,7 +8,7 @@ import { startQueue } from './queue.js'
 import { handleMessage, finalizeSubmissions } from './handlers.js'
 import { startWeb } from './web.js'
 
-if (!config.ownerPhones.length) logger.warn('OWNER_PHONES is empty - you will not get WhatsApp notifications about new people')
+if (config.missingStorage) logger.error('No Railway volume attached - data and the WhatsApp login will be lost on every deploy')
 
 wa.on('message', handleMessage)
 startWeb()

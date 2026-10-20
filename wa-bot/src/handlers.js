@@ -11,6 +11,7 @@ import { reply } from './queue.js'
 import { autoSchedule, formatWhen } from './scheduler.js'
 import { parseCommand, isCancel, extensionFor } from './parse.js'
 import { personalCommands } from './commands/personal.js'
+import { ownerPhones } from './settings.js'
 
 const MEDIA_TYPES = {
   imageMessage: 'image',
@@ -85,7 +86,7 @@ async function identify(msg) {
     logger.warn({ jid }, 'could not resolve phone number for sender, ignoring message')
     return null
   }
-  return { jid, phone, isOwner: config.ownerPhones.includes(phone) || phone === myPhone }
+  return { jid, phone, isOwner: ownerPhones().includes(phone) || phone === myPhone }
 }
 
 async function receiveMedia(ctx, msg, content, type) {
@@ -179,7 +180,7 @@ export function summarize(items) {
 }
 
 function notifyOwners(text) {
-  for (const p of config.ownerPhones) reply(store.getCustomer(p)?.chat_jid || `${p}@s.whatsapp.net`, text)
+  for (const p of ownerPhones()) reply(store.getCustomer(p)?.chat_jid || `${p}@s.whatsapp.net`, text)
 }
 
 function customerHelp() {
