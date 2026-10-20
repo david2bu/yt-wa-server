@@ -398,7 +398,8 @@ async function handle(req, res) {
   if (!isLoggedIn(req)) return send(res, 401, { error: 'צריך להתחבר' })
 
   // SameSite=Strict blocks cross-site cookies; also reject cross-origin writes outright
-  if (req.method !== 'GET' && req.headers.origin && originHost(req.headers.origin) !== req.headers.host) {
+  const hosts = [req.headers.host, ...String(req.headers['x-forwarded-host'] || '').split(',')].map((x) => x?.trim())
+  if (req.method !== 'GET' && req.headers.origin && !hosts.includes(originHost(req.headers.origin))) {
     return send(res, 403, { error: 'מקור לא מורשה' })
   }
 
