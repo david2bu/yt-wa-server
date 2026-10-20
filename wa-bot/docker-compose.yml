@@ -1,0 +1,36 @@
+services:
+  wa-bot:
+    build: .
+    container_name: wa-bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+      PORT: "3000"
+    volumes:
+      - ./data:/app/data
+    # not published to the internet directly - only through Caddy (HTTPS)
+    expose:
+      - "3000"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    image: caddy:2.8
+    container_name: wa-bot-caddy
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - wa-bot
+
+volumes:
+  caddy_data:
+  caddy_config:

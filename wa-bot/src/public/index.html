@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>מערכת שליחות</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="login" class="login" hidden>
+    <form class="card login-card" id="login-form">
+      <h1>מערכת שליחות</h1>
+      <label>סיסמה<input type="password" name="password" autocomplete="current-password" required autofocus></label>
+      <button class="btn primary" type="submit">כניסה</button>
+      <p class="error" id="login-error"></p>
+    </form>
+  </div>
+
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand">מערכת שליחות</div>
+      <nav class="tabs" id="tabs">
+        <button data-tab="home">לוח</button>
+        <button data-tab="inbox">הגשות <span class="count" id="count-inbox"></span></button>
+        <button data-tab="calendar">יומן</button>
+        <button data-tab="customers">לקוחות <span class="count" id="count-customers"></span></button>
+        <button data-tab="new">פרסום חדש</button>
+        <button data-tab="connection">חיבור <span class="dot" id="conn-dot"></span></button>
+      </nav>
+      <button class="btn ghost small" id="logout">יציאה</button>
+    </header>
+    <main id="view"></main>
+  </div>
+
+  <dialog id="dialog"><form method="dialog" id="dialog-body"></form></dialog>
+  <div id="toast" class="toast" hidden></div>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
