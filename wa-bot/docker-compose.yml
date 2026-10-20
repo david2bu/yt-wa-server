@@ -9,15 +9,16 @@ services:
       PORT: "3000"
     volumes:
       - ./data:/app/data
-    # not published to the internet directly - only through Caddy (HTTPS)
-    expose:
-      - "3000"
+    # only reachable from this machine; the internet goes through Caddy or nginx (HTTPS)
+    ports:
+      - "127.0.0.1:3000:3000"
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
   caddy:
     image: caddy:2.8
+    profiles: ["caddy"] # used when no other web server runs on this machine (see install.sh)
     container_name: wa-bot-caddy
     restart: unless-stopped
     env_file: .env
