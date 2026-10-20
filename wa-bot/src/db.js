@@ -86,6 +86,10 @@ CREATE TABLE IF NOT EXISTS sent_messages (
   created_at INTEGER NOT NULL
 );
 -- people who wrote to the bot but aren't customers
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS strangers (
   phone      TEXT PRIMARY KEY,
   name       TEXT,
@@ -349,3 +353,9 @@ export function finishedSubmissionsBefore(ts) {
       AND NOT EXISTS (SELECT 1 FROM deliveries d WHERE d.submission_id = s.id AND d.status = 'pending')
       AND EXISTS (SELECT 1 FROM deliveries d WHERE d.submission_id = s.id)`, ts).map((r) => r.id)
 }
+
+// ---------- settings (things the owner sets from the website) ----------
+
+export const getSetting = (key) => one('SELECT value FROM settings WHERE key = ?', key)?.value
+export const setSetting = (key, value) =>
+  run('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', key, value)

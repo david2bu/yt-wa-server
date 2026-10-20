@@ -13,6 +13,7 @@ import { reply, kick } from './queue.js'
 import { autoSchedule, formatWhen } from './scheduler.js'
 import { newMediaPath, summarize } from './handlers.js'
 import { extensionFor, kindFor } from './parse.js'
+import { ownerPhones, setOwnerPhones, hasPassword, checkPassword, setPassword, sessionSecret } from './settings.js'
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public')
 const STATIC = { '/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css' }
@@ -28,7 +29,7 @@ class HttpError extends Error {
 // ---------------- auth ----------------
 
 const SESSION_DAYS = 30
-const sign = (v) => crypto.createHmac('sha256', config.sessionSecret).update(v).digest('hex')
+const sign = (v) => crypto.createHmac('sha256', sessionSecret()).update(v).digest('hex')
 
 function makeSession() {
   const exp = String(Date.now() + SESSION_DAYS * 86400_000)
@@ -55,11 +56,6 @@ function noteFailedLogin(ip) {
   else f.n++
 }
 
-function passwordMatches(given) {
-  const a = crypto.createHash('sha256').update(String(given || '')).digest()
-  const b = crypto.createHash('sha256').update(config.adminPassword).digest()
-  return crypto.timingSafeEqual(a, b)
-}
 
 // ---------------- helpers ----------------
 
@@ -142,7 +138,21 @@ route('GET', '/api/status', async () => ({
   unscheduled: store.listSubmissions({ status: 'unscheduled' }).length,
   failed: store.listSubmissions({ status: 'failed' }).length,
   strangers: store.listStrangers().length,
+  missingStorage: config.missingStorage,
+  ownerPhones: ownerPhones(),
 }))
+
+route('PUT', '/api/settings', async (req) => {
+  const body = await readJson(req)
+  if (body.ownerPhone !== undefined) setOwnerPhones(String(body.ownerPhone).split(','))
+  if (body.newPassword !== undefined) {
+    if (process.env.ADMIN_PASSWORD) throw new HttpError(400, 'הסיסמה מוגדרת בשרת (ADMIN_PASSWORD) ולא ניתנת לשינוי מכאן')
+    if (!checkPassword(body.currentPassword)) throw new HttpError(400, 'הסיסמה הנוכחית שגויה')
+    if (String(body.newPassword).length < 6) throw new HttpError(400, 'סיסמה של 6 תווים לפחות')
+    setPassword(String(body.newPassword))
+  }
+  return { ok: true, ownerPhones: ownerPhones() }
+})
 
 route('GET', '/api/groups', () => store.listGroups())
 route('POST', '/api/groups/refresh', async () => {
@@ -299,8 +309,8 @@ function receiveUpload(req) {
           for (const f of files) fs.rmSync(f.file, { force: true })
           throw new HttpError(413, `קובץ גדול מ-${config.maxFileBytes / 1048576}MB`)
         }
-        const phone = normalizePhone(fields.phone) || config.ownerPhones[0] || 'owner'
-        if (!store.getCustomer(phone)) store.saveCustomer(phone, { name: config.ownerPhones.includes(phone) ? 'אני' : '' })
+        const phone = normalizePhone(fields.phone) || ownerPhones()[0] || 'owner'
+        if (!store.getCustomer(phone)) store.saveCustomer(phone, { name: ownerPhones().includes(phone) || phone === 'owner' ? 'אני' : '' })
         const text = (fields.text || '').trim()
         if (!files.length && !text) throw new HttpError(400, 'אין תוכן')
 
@@ -375,19 +385,33 @@ async function handle(req, res) {
     return fs.createReadStream(file).pipe(res)
   }
 
+  const login = () => {
+    const cookie = `sid=${makeSession()}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DAYS * 86400}${isHttps(req) ? '; Secure' : ''}`
+    res.setHeader('set-cookie', cookie)
+    return send(res, 200, { ok: true })
+  }
+
+  // first visit: no password yet -> the site asks to choose one
+  if (p === '/api/setup' && req.method === 'GET') return send(res, 200, { needsSetup: !hasPassword() })
+  if (p === '/api/setup' && req.method === 'POST') {
+    if (hasPassword()) throw new HttpError(403, 'כבר נקבעה סיסמה')
+    const body = await readJson(req)
+    if (String(body.password || '').length < 6) throw new HttpError(400, 'סיסמה של 6 תווים לפחות')
+    setPassword(String(body.password))
+    if (body.phone) setOwnerPhones([body.phone])
+    return login()
+  }
+
   if (p === '/api/login' && req.method === 'POST') {
     const ip = clientIp(req)
     checkRateLimit(ip)
-    if (!config.adminPassword) throw new HttpError(500, 'לא הוגדרה סיסמה (ADMIN_PASSWORD בקובץ .env)')
     const { password } = await readJson(req)
-    if (!passwordMatches(password)) {
+    if (!checkPassword(password)) {
       noteFailedLogin(ip)
       throw new HttpError(401, 'סיסמה שגויה')
     }
     failedLogins.delete(ip)
-    const cookie = `sid=${makeSession()}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DAYS * 86400}${isHttps(req) ? '; Secure' : ''}`
-    res.setHeader('set-cookie', cookie)
-    return send(res, 200, { ok: true })
+    return login()
   }
   if (p === '/api/logout' && req.method === 'POST') {
     res.setHeader('set-cookie', 'sid=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0')
@@ -427,6 +451,6 @@ export function startWeb() {
   })
   server.requestTimeout = 30 * 60_000 // big uploads on slow connections
   server.listen(config.port, () => logger.info({ port: config.port }, 'website up'))
-  if (!config.adminPassword) logger.error('ADMIN_PASSWORD is not set - nobody can log in to the website')
+  if (!hasPassword()) logger.warn('no password yet - the first visit to the website will ask to set one')
   return server
 }

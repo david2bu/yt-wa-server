@@ -11,7 +11,9 @@
   <div id="login" class="login" hidden>
     <form class="card login-card" id="login-form">
       <h1>מערכת שליחות</h1>
+      <p class="muted setup-only" style="margin:0">ברוך הבא! זו הפעם הראשונה. בחר סיסמה לכניסה לאתר.</p>
       <label>סיסמה<input type="password" name="password" autocomplete="current-password" required autofocus></label>
+      <label class="setup-only">המספר שלך בוואטסאפ (לקבלת התראות)<input type="tel" name="phone" dir="ltr" placeholder="050-1234567"></label>
       <button class="btn primary" type="submit">כניסה</button>
       <p class="error" id="login-error"></p>
     </form>
