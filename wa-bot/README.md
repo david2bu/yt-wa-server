@@ -34,7 +34,7 @@
 curl -fsSL https://raw.githubusercontent.com/david2bu/yt-wa-server/main/wa-bot/install.sh | sudo bash -s bot.judit.live
 ```
 
-לפני כן צריך רשומת A, למשל `bot.judit.live`, שמצביעה על ה-IP של השרת. עדכון גרסה: מריצים את אותה פקודה שוב.
+לפני כן צריך רשומת A, למשל `bot.judit.live`, שמצביעה על ה-IP של השרת. עדכונים עולים לשרת לבד: כל כמה דקות השרת בודק אם יש גרסה חדשה ב-GitHub ומעדכן את עצמו.
 
 ## התקנה ידנית
 

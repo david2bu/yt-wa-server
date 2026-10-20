@@ -7,7 +7,8 @@
 # - downloads (or updates) the bot into /opt/wa-bot
 # - if ports 80/443 are free: runs Caddy for automatic HTTPS
 # - if nginx already serves another site here: adds the bot as an extra nginx site + Let's Encrypt certificate
-# Safe to run again; that's also how you update.
+# - installs a timer that pulls new versions from GitHub automatically
+# Safe to run again.
 set -euo pipefail
 
 DOMAIN="${1:-${DOMAIN:-}}"
@@ -101,6 +102,31 @@ else
   MODE=manual
 fi
 
+say "מגדיר עדכון אוטומטי (כל שינוי ב-GitHub עולה לשרת לבד תוך כמה דקות)"
+cat > /etc/systemd/system/wa-bot-update.service <<UNIT
+[Unit]
+Description=Update the WhatsApp bot from GitHub
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+Environment=BRANCH=$BRANCH
+ExecStart=$APP/update.sh
+UNIT
+cat > /etc/systemd/system/wa-bot-update.timer <<'UNIT'
+[Unit]
+Description=Check GitHub for bot updates every 3 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now wa-bot-update.timer >/dev/null
+
 say "ממתין שהבוט יעלה"
 for _ in $(seq 1 30); do
   if curl -fsS -o /dev/null http://127.0.0.1:3000/api/setup; then break; fi
@@ -111,7 +137,7 @@ if curl -fsS -o /dev/null http://127.0.0.1:3000/api/setup; then
   [ "$MODE" != manual ] && echo "   היכנסו ל: https://$DOMAIN"
   echo "   בכניסה הראשונה בוחרים סיסמה, ואז בלשונית 'חיבור' סורקים את ה-QR."
   echo "   לוגים:  cd $APP && docker compose logs -f wa-bot"
-  echo "   עדכון:  להריץ שוב את אותה פקודה"
+  echo "   עדכונים מ-GitHub עולים לבד (יומן: journalctl -u wa-bot-update)"
 else
   warn "הבוט לא עלה. הלוגים:"
   docker compose logs --tail 50 wa-bot
