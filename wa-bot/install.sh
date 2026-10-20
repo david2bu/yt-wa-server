@@ -6,6 +6,7 @@
 # - installs Docker if missing
 # - downloads (or updates) the bot into /opt/wa-bot
 # - if ports 80/443 are free: runs Caddy for automatic HTTPS
+# - if Caddy is already installed here (serving other sites): adds the bot to /etc/caddy/Caddyfile
 # - if nginx already serves another site here: adds the bot as an extra nginx site + Let's Encrypt certificate
 # - installs a timer that pulls new versions from GitHub automatically
 # Safe to run again.
@@ -26,7 +27,10 @@ die() { printf '\n\033[1;31mXX  %s\033[0m\n' "$*"; exit 1; }
 
 say "בודק את Docker"
 if ! command -v docker >/dev/null 2>&1; then
-  curl -fsSL https://get.docker.com | sh </dev/null
+  # download first: "curl | sh </dev/null" would feed sh an empty script and silently skip the install
+  curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  sh /tmp/get-docker.sh </dev/null
+  rm -f /tmp/get-docker.sh
 fi
 docker compose version >/dev/null 2>&1 || apt-get install -y docker-compose-plugin </dev/null
 command -v git >/dev/null 2>&1 || apt-get install -y git </dev/null
@@ -60,13 +64,33 @@ if [ -n "$MYIP" ] && [ "$DNSIP" != "$MYIP" ]; then
 fi
 
 port_busy() { ss -ltnH "( sport = :$1 )" | grep -q . ; }
+# name of the process listening on a port (e.g. caddy, nginx), empty if free
+port_owner() { ss -ltnpH "( sport = :$1 )" | grep -o 'users:(("[^"]*' | head -n1 | cut -d'"' -f2 || true; }
 caddy_running() { docker ps --format '{{.Names}}' | grep -qx wa-bot-caddy; }
 
 if caddy_running || { ! port_busy 80 && ! port_busy 443; }; then
   say "מפעיל את הבוט + HTTPS אוטומטי (Caddy)"
   docker compose --profile caddy up -d --build --remove-orphans
   MODE=caddy
-elif command -v nginx >/dev/null 2>&1 && systemctl is-active --quiet nginx; then
+elif [ "$(port_owner 80)" = caddy ] && [ -f /etc/caddy/Caddyfile ]; then
+  say "Caddy כבר רץ כאן (האתרים הקיימים). מוסיף את הבוט ל-/etc/caddy/Caddyfile"
+  docker compose up -d --build --remove-orphans
+  CADDYFILE=/etc/caddy/Caddyfile
+  if ! grep -q "^$DOMAIN {" "$CADDYFILE"; then
+    cp "$CADDYFILE" "$CADDYFILE.bak-wa-bot-$(date +%Y%m%d%H%M)"
+    cat >> "$CADDYFILE" <<CADDY
+
+$DOMAIN {
+	request_body {
+		max_size 200MB
+	}
+	reverse_proxy 127.0.0.1:3000
+}
+CADDY
+  fi
+  caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null && systemctl reload caddy
+  MODE=hostcaddy
+elif [ "$(port_owner 80)" = nginx ]; then
   say "nginx כבר רץ כאן (האתר הקיים). מוסיף את הבוט כאתר נוסף ב-nginx"
   docker compose up -d --build --remove-orphans
   CONF=/etc/nginx/conf.d/wa-bot.conf
