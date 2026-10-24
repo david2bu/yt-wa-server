@@ -1,5 +1,7 @@
 FROM node:22-slim
 WORKDIR /app
+# ffmpeg/ffprobe: video thumbnail, size and duration, so videos show as playable in WhatsApp
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production TZ=Asia/Jerusalem
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev

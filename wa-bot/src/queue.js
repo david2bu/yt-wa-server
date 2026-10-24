@@ -3,6 +3,7 @@ import { config } from './config.js'
 import { logger } from './logger.js'
 import * as store from './db.js'
 import { wa } from './whatsapp.js'
+import { videoPreview } from './media.js'
 
 /**
  * Sends everything that is due, from the database:
@@ -84,7 +85,7 @@ async function sendReply(r) {
   }
 }
 
-export function contentFor(item) {
+export async function contentFor(item) {
   if (item.kind === 'text') return { text: item.caption || '' }
   if (!item.path || !fs.existsSync(item.path)) throw new PermanentError('הקובץ לא נמצא בשרת')
   const media = { url: item.path }
@@ -93,7 +94,7 @@ export function contentFor(item) {
     case 'image':
       return { image: media, caption }
     case 'video':
-      return { video: media, caption, mimetype: item.mimetype || 'video/mp4' }
+      return { video: media, caption, mimetype: item.mimetype || 'video/mp4', ...(await videoPreview(item.path)) }
     case 'audio':
       return { audio: media, mimetype: item.mimetype || 'audio/mpeg' }
     default:
@@ -108,7 +109,7 @@ async function sendDelivery(d) {
     const items = store.getItems(d.submission_id)
     if (!items.length) throw new PermanentError('אין תוכן לשליחה')
     for (let i = d.items_sent; i < items.length; i++) {
-      await wa.send(d.group_jid, contentFor(items[i]))
+      await wa.send(d.group_jid, await contentFor(items[i]))
       store.setItemsSent(d.id, i + 1) // so a retry doesn't post the same item twice
       if (i < items.length - 1) await sleep(1000 + Math.random() * 1000)
     }
