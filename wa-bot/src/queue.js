@@ -3,7 +3,7 @@ import { config } from './config.js'
 import { logger } from './logger.js'
 import * as store from './db.js'
 import { wa } from './whatsapp.js'
-import { videoPreview } from './media.js'
+import { videoPreview, imagePreview } from './media.js'
 
 /**
  * Sends everything that is due, from the database:
@@ -92,14 +92,31 @@ export async function contentFor(item) {
   const caption = item.caption || undefined
   switch (item.kind) {
     case 'image':
-      return { image: media, caption }
+      return { image: media, caption, ...(await previewFor(item, imagePreview)) }
     case 'video':
-      return { video: media, caption, mimetype: item.mimetype || 'video/mp4', ...(await videoPreview(item.path)) }
+      return { video: media, caption, mimetype: item.mimetype || 'video/mp4', ...(await previewFor(item, videoPreview)) }
     case 'audio':
       return { audio: media, mimetype: item.mimetype || 'audio/mpeg' }
     default:
       return { document: media, mimetype: item.mimetype || 'application/octet-stream', fileName: item.filename || 'file', caption }
   }
+}
+
+// Prefer the thumbnail and size that came with the customer's message (made by WhatsApp itself);
+// fall back to generating them with ffmpeg (uploads from the website)
+async function previewFor(item, generate) {
+  const stored = {
+    jpegThumbnail: item.thumb || undefined,
+    width: item.width || undefined,
+    height: item.height || undefined,
+    seconds: item.seconds || undefined,
+  }
+  const missing = !stored.jpegThumbnail || !stored.width || (item.kind === 'video' && !stored.seconds)
+  const made = missing ? await generate(item.path) : {}
+  const out = { ...made }
+  for (const [k, v] of Object.entries(stored)) if (v !== undefined) out[k] = v
+  if (item.kind !== 'video') delete out.seconds
+  return out
 }
 
 async function sendDelivery(d) {

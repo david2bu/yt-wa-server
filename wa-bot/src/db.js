@@ -101,6 +101,12 @@ CREATE TABLE IF NOT EXISTS strangers (
 );
 `)
 
+// columns added after the first release; existing databases get them on startup
+const itemCols = db.prepare('PRAGMA table_info(items)').all().map((c) => c.name)
+for (const [col, type] of [['thumb', 'TEXT'], ['width', 'INTEGER'], ['height', 'INTEGER'], ['seconds', 'INTEGER']]) {
+  if (!itemCols.includes(col)) db.exec(`ALTER TABLE items ADD COLUMN ${col} ${type}`)
+}
+
 const now = () => Date.now()
 const one = (sql, ...p) => db.prepare(sql).get(...p)
 const all = (sql, ...p) => db.prepare(sql).all(...p)
@@ -219,9 +225,10 @@ export function createSubmission(phone, source, state = 'collecting') {
 }
 
 export function addItem(submissionId, it) {
-  run(`INSERT INTO items (submission_id, kind, path, mimetype, filename, caption, size, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  submissionId, it.kind, it.path ?? null, it.mimetype ?? null, it.filename ?? null, it.caption ?? null, it.size ?? null, now())
+  run(`INSERT INTO items (submission_id, kind, path, mimetype, filename, caption, size, thumb, width, height, seconds, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  submissionId, it.kind, it.path ?? null, it.mimetype ?? null, it.filename ?? null, it.caption ?? null, it.size ?? null,
+  it.thumb ?? null, it.width ?? null, it.height ?? null, it.seconds ?? null, now())
   run('UPDATE submissions SET updated_at = ? WHERE id = ?', now(), submissionId)
 }
 

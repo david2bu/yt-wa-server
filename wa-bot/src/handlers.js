@@ -116,6 +116,11 @@ async function receiveMedia(ctx, msg, content, type) {
     filename: media.fileName,
     caption: media.caption,
     size: fs.statSync(file).size,
+    // the preview the customer's own phone made; WhatsApp shows it as-is when we post
+    thumb: media.jpegThumbnail?.length ? Buffer.from(media.jpegThumbnail).toString('base64') : null,
+    width: media.width || null,
+    height: media.height || null,
+    seconds: media.seconds || null,
   })
 }
 
