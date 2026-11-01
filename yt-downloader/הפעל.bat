@@ -3,7 +3,7 @@ chcp 65001 >nul
 cd /d "%~dp0"
 title YouTube Downloader
 
-rem --- Python: use the venv if it exists, otherwise install everything once ---
+rem Runs the app from source. Most users should use YouTubeDownloader.exe instead.
 if exist "venv\Scripts\python.exe" goto run
 
 set "PYEXE="
@@ -24,12 +24,10 @@ if not exist "venv\Scripts\python.exe" (
   exit /b 1
 )
 venv\Scripts\python.exe -m pip install -q --disable-pip-version-check --upgrade pip
-venv\Scripts\python.exe -m pip install -q --disable-pip-version-check -U --pre -r requirements.txt
+venv\Scripts\python.exe -m pip install -q --disable-pip-version-check -r requirements.txt
 
 rem Desktop shortcut
-powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\מוריד יוטיוב.lnk');$s.TargetPath='%~dp0הפעל.bat';$s.WorkingDirectory='%~dp0';$s.IconLocation='shell32.dll,175';$s.Save()" >nul 2>nul
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\מוריד יוטיוב.lnk');$s.TargetPath='%~dp0הפעל.bat';$s.WorkingDirectory='%~dp0';$s.IconLocation='%~dp0assets\icon.ico';$s.Save()" >nul 2>nul
 
 :run
-venv\Scripts\python.exe -X utf8 app.py --setup
-venv\Scripts\python.exe -X utf8 app.py
-pause
+start "" venv\Scripts\pythonw.exe -X utf8 app.py

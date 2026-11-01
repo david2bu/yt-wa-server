@@ -4,203 +4,428 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>מוריד יוטיוב</title>
+<link rel="icon" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0b12;--surface:#13131c;--border:#232335;--red:#ff3b3b;--violet:#7c5cff;--green:#22c55e;--amber:#f59e0b;--text:#f0f0f5;--muted:#8a8aa3}
+:root{
+  --bg:#07070d; --glass:rgba(255,255,255,.045); --glass2:rgba(255,255,255,.07); --line:rgba(255,255,255,.09);
+  --text:#f3f3fa; --muted:#9a9ab5; --dim:#62627e;
+  --pink:#ff3b78; --violet:#7c5cff; --cyan:#22d3ee; --green:#34d399; --amber:#fbbf24; --red:#f87171;
+  --grad:linear-gradient(120deg,var(--pink),var(--violet) 55%,var(--cyan));
+  --r:22px;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Rubik,Arial,sans-serif;min-height:100vh;padding:24px 16px}
-.wrap{max-width:760px;margin:0 auto}
-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-.logo{width:42px;height:42px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(255,59,59,.3)}
-h1{font-size:22px;font-weight:800;flex:1}
-.upd{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px 6px 6px 12px}
-.upd small{color:var(--muted);font-size:12px;direction:ltr}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
-.dot.ok{background:var(--green)}.dot.new{background:var(--amber)}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
-.lbl{font-size:13px;color:var(--muted);margin-bottom:8px}
-textarea{width:100%;min-height:74px;resize:vertical;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font:14px/1.5 Consolas,monospace;direction:ltr;outline:none}
-textarea:focus{border-color:var(--violet)}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
-.seg{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px}
-.seg button{border:0;background:transparent;color:var(--muted);padding:9px 16px;border-radius:8px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer}
-.seg button.on{background:var(--violet);color:#fff}
-select{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:inherit;font-size:14px}
-label.chk{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
-.btn{border:0;border-radius:10px;padding:10px 16px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;background:var(--border);color:var(--text)}
-.btn:disabled{opacity:.5;cursor:default}
-.btn.main{background:linear-gradient(90deg,var(--red),var(--violet));color:#fff;padding:13px 26px;font-size:16px;margin-inline-start:auto}
-.btn.sm{padding:7px 12px;font-size:13px}
-.btn.amber{background:var(--amber);color:#111}
-.folder{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
-.folder code{direction:ltr;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;flex:1;min-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.job{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
-.job.done{border-color:rgba(34,197,94,.4)}.job.error{border-color:rgba(255,59,59,.5)}.job.partial{border-color:rgba(245,158,11,.5)}
-.jh{display:flex;gap:10px;align-items:flex-start}
-.jt{flex:1;min-width:0}
-.jt b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tag{display:inline-block;font-size:11px;border-radius:6px;padding:2px 7px;background:var(--bg);border:1px solid var(--border);color:var(--muted);margin-inline-end:6px}
-.st{font-size:13px;color:var(--muted);margin-top:4px}
-.bar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:10px}
-.fill{height:100%;background:linear-gradient(90deg,var(--red),var(--violet));transition:width .4s}
-.fill.all{background:var(--green)}
-.cur{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;gap:10px}
-.cur span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.err{font-size:12px;color:#ff8a8a;margin-top:8px;direction:ltr;text-align:left;max-height:90px;overflow:auto;white-space:pre-wrap}
-details{margin-top:8px;font-size:12px;color:var(--muted)}
-details li{list-style:none;padding:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}
-.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);color:#fcd34d;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
-.hint{font-size:12px;color:var(--muted);margin-top:6px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222236;border:1px solid var(--border);padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
-.toast.show{opacity:1}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--text);font-family:Heebo,'Segoe UI',Arial,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit}
+
+/* animated backdrop */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;animation:float 22s ease-in-out infinite}
+.b1{width:520px;height:520px;background:var(--violet);top:-160px;right:-120px}
+.b2{width:460px;height:460px;background:var(--pink);bottom:-180px;left:-140px;animation-delay:-7s}
+.b3{width:360px;height:360px;background:var(--cyan);top:38%;left:42%;opacity:.18;animation-delay:-13s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,40px) scale(1.08)}66%{transform:translate(-40px,30px) scale(.94)}}
+.grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 10%,transparent 70%);opacity:.5}
+
+.wrap{max-width:880px;margin:0 auto;padding:28px 20px 60px}
+
+/* header */
+header{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.logo{width:52px;height:52px;border-radius:16px;box-shadow:0 10px 30px rgba(124,92,255,.45)}
+.brand{flex:1}
+.brand h1{font-size:26px;font-weight:900;letter-spacing:-.5px;background:linear-gradient(90deg,#fff,#c9c3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand p{font-size:13px;color:var(--muted);margin-top:2px;letter-spacing:.3px}
+.engine{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px)}
+.engine .meta{display:flex;flex-direction:column;line-height:1.15}
+.engine .meta b{font-size:12px;font-weight:600}
+.engine .meta small{font-size:11px;color:var(--muted);direction:ltr;text-align:right;font-family:Consolas,monospace}
+.pulse{width:10px;height:10px;border-radius:50%;background:var(--dim);position:relative;flex-shrink:0}
+.pulse.ok{background:var(--green)} .pulse.new{background:var(--amber)} .pulse.busy{background:var(--cyan)}
+.pulse.ok::after,.pulse.new::after,.pulse.busy::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid currentColor;color:inherit;animation:ping 1.8s ease-out infinite}
+.pulse.ok::after{color:var(--green)} .pulse.new::after{color:var(--amber)} .pulse.busy::after{color:var(--cyan)}
+@keyframes ping{from{transform:scale(.6);opacity:.9}to{transform:scale(1.9);opacity:0}}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--glass2);color:var(--text);
+  border-radius:999px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .15s,background .2s,border-color .2s,box-shadow .2s;white-space:nowrap}
+.btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.18);transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.97)}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.btn svg{width:17px;height:17px;flex-shrink:0}
+.btn.grad{background:var(--grad);background-size:200% 100%;border:0;color:#fff;box-shadow:0 8px 26px rgba(124,92,255,.35);animation:shift 6s ease infinite}
+.btn.grad:hover{box-shadow:0 12px 34px rgba(255,59,120,.45)}
+@keyframes shift{0%,100%{background-position:0 0}50%{background-position:100% 0}}
+.btn.amber{background:linear-gradient(120deg,#f59e0b,#fbbf24);color:#1a1205;border:0;box-shadow:0 6px 22px rgba(251,191,36,.35)}
+.btn.icon{width:40px;height:40px;padding:0}
+.btn.sm{padding:8px 14px;font-size:13px}
+.spin svg{animation:rot 1s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* glass card */
+.card{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);padding:22px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 20px 60px rgba(0,0,0,.35);margin-bottom:16px}
+.hero{position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(140deg,rgba(255,59,120,.5),transparent 40%,transparent 60%,rgba(34,211,238,.45));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+
+.input{position:relative;display:flex;align-items:flex-start;gap:10px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:18px;padding:6px 6px 6px 14px;transition:border-color .2s,box-shadow .2s}
+.input:focus-within{border-color:rgba(124,92,255,.7);box-shadow:0 0 0 4px rgba(124,92,255,.15)}
+.input .lnk{width:22px;height:22px;color:var(--muted);margin:12px 8px 0 0;flex-shrink:0}
+textarea{flex:1;min-height:46px;max-height:180px;resize:none;background:transparent;border:0;outline:0;color:var(--text);font:15px/1.6 Consolas,'Cascadia Code',monospace;direction:ltr;padding:11px 4px}
+textarea::placeholder{color:var(--dim);font-family:Heebo,sans-serif;direction:rtl;text-align:right}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:18px}
+.seg{position:relative;display:flex;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:999px;padding:4px}
+.seg .thumb{position:absolute;top:4px;bottom:4px;border-radius:999px;background:var(--grad);box-shadow:0 6px 20px rgba(124,92,255,.4);transition:all .35s cubic-bezier(.5,1.6,.4,1)}
+.seg button{position:relative;z-index:1;display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--muted);padding:10px 20px;border-radius:999px;font-size:15px;font-weight:700;cursor:pointer;transition:color .2s}
+.seg button.on{color:#fff}
+.seg button svg{width:18px;height:18px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--muted);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.chip:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+.chip.on{color:#fff;border-color:transparent;background:linear-gradient(var(--bg),var(--bg)) padding-box,var(--grad) border-box;border:1px solid transparent;box-shadow:0 0 18px rgba(124,92,255,.3)}
+.chip small{opacity:.6;font-weight:400;margin-inline-start:4px}
+
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:500;user-select:none}
+.switch input{display:none}
+.switch .tr{width:44px;height:26px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;transition:background .25s;flex-shrink:0}
+.switch .tr::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .3s cubic-bezier(.5,1.6,.4,1);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.switch input:checked+.tr{background:var(--grad)}
+.switch input:checked+.tr::after{transform:translateX(-18px)}
+
+.go{margin-inline-start:auto;padding:15px 34px;font-size:17px;font-weight:800;letter-spacing:.3px}
+.go svg{width:20px;height:20px}
+.pl-badge{display:none;align-items:center;gap:10px;margin-top:14px;padding:10px 14px;border-radius:14px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);font-size:14px}
+.pl-badge.show{display:flex}
+.pl-badge svg{width:20px;height:20px;color:var(--cyan)}
+
+/* folder bar */
+.bar-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.path{flex:1;min-width:200px;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:999px;padding:10px 16px}
+.path svg{width:18px;height:18px;color:var(--violet);flex-shrink:0}
+.path code{direction:ltr;font:13px Consolas,monospace;color:#d6d6ea;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:right}
+.adv{margin-top:16px;border-top:1px solid var(--line);padding-top:16px;display:none;gap:14px;flex-direction:column}
+.adv.show{display:flex}
+.adv .hint{font-size:12.5px;color:var(--muted);line-height:1.6}
+select{appearance:none;background:rgba(0,0,0,.35) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239a9ab5'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat 14px center;border:1px solid var(--line);border-radius:999px;padding:9px 16px 9px 36px;color:var(--text);font-size:14px;cursor:pointer}
+select option{background:#15151f}
+
+/* jobs */
+.sec{display:flex;align-items:center;gap:10px;margin:28px 4px 14px}
+.sec h2{font-size:18px;font-weight:800;flex:1;display:flex;align-items:center;gap:10px}
+.count{font-size:12px;font-weight:700;background:var(--glass2);border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted)}
+.job{display:flex;gap:16px;background:var(--glass);border:1px solid var(--line);border-radius:20px;padding:14px;margin-bottom:12px;backdrop-filter:blur(14px);transition:border-color .3s}
+
+.job.new{animation:in .4s ease}
+@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.job.done{border-color:rgba(52,211,153,.35)} .job.error{border-color:rgba(248,113,113,.4)} .job.partial{border-color:rgba(251,191,36,.4)}
+.th{width:168px;aspect-ratio:16/9;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#1c1c2b,#121220);overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center}
+.th img{width:100%;height:100%;object-fit:cover}
+.th svg{width:34px;height:34px;color:var(--dim)}
+.th .badge{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);border-radius:8px;padding:2px 7px;font-size:11px;font-weight:700;direction:ltr}
+.th .ok{position:absolute;inset:0;background:rgba(7,7,13,.55);display:flex;align-items:center;justify-content:center}
+.th .ok svg{width:42px;height:42px;color:var(--green);filter:drop-shadow(0 0 12px rgba(52,211,153,.6))}
+.jb{flex:1;min-width:0;display:flex;flex-direction:column}
+.jt{display:flex;gap:10px;align-items:flex-start}
+.jt h3{flex:1;font-size:15.5px;font-weight:700;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.acts{display:flex;gap:6px}
+.acts .btn{width:36px;height:36px;padding:0}
+.acts .btn svg{width:16px;height:16px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.tag{font-size:11.5px;font-weight:600;border-radius:999px;padding:3px 10px;background:rgba(255,255,255,.06);color:var(--muted)}
+.tag.mode{background:rgba(124,92,255,.15);color:#c4b5fd}
+.tag.pl{background:rgba(34,211,238,.12);color:#67e8f9}
+.status{font-size:12.5px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
+.status.running{color:var(--cyan)} .status.done{color:var(--green)} .status.error{color:var(--red)} .status.partial{color:var(--amber)}
+.prog{margin-top:auto;padding-top:12px}
+.track{height:8px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;position:relative}
+.fill{height:100%;border-radius:999px;background:var(--grad);background-size:200% 100%;transition:width .5s ease;position:relative;overflow:hidden}
+.fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);transform:translateX(100%);animation:shine 1.6s infinite}
+@keyframes shine{to{transform:translateX(-100%)}}
+.job.done .fill{background:linear-gradient(90deg,#10b981,#34d399)} .job.done .fill::after,.job.error .fill::after,.job.partial .fill::after{display:none}
+.job.queued .fill{width:100%!important;opacity:.25;animation:none}
+.pinfo{display:flex;justify-content:space-between;gap:10px;margin-top:7px;font-size:12px;color:var(--muted)}
+.pinfo .cur{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pinfo b{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
+.err{margin-top:10px;font:12px/1.5 Consolas,monospace;color:#fca5a5;direction:ltr;text-align:left;background:rgba(248,113,113,.08);border-radius:10px;padding:8px 10px;max-height:84px;overflow:auto;white-space:pre-wrap}
+.list{margin-top:10px}
+.list summary{cursor:pointer;font-size:12.5px;color:var(--muted);list-style:none;display:inline-flex;align-items:center;gap:6px}
+.list summary svg{width:15px;height:15px}
+.list summary::-webkit-details-marker{display:none}
+.list ul{list-style:none;margin-top:8px;max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.list li{display:flex;gap:8px;align-items:center;font-size:12.5px;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.03)}
+.list li span:nth-child(2){flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list li .n{color:var(--dim);font-variant-numeric:tabular-nums;min-width:26px}
+.empty{text-align:center;padding:48px 20px;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r)}
+.empty svg{width:54px;height:54px;color:var(--dim);margin-bottom:12px}
+.empty b{display:block;color:var(--text);font-size:16px;margin-bottom:4px}
+
+/* setup overlay */
+.overlay{position:fixed;inset:0;background:rgba(7,7,13,.8);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.overlay.show{display:flex}
+.setup{max-width:420px;width:100%;text-align:center;padding:34px 30px}
+.ring{width:132px;height:132px;margin:0 auto 18px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+.ring .bgc{stroke:rgba(255,255,255,.08)}
+.ring .fg{stroke:url(#rg);transition:stroke-dashoffset .4s}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900}
+.setup h3{font-size:20px;font-weight:800;margin-bottom:6px}
+.setup p{color:var(--muted);font-size:14px;line-height:1.6}
+.setup .err{text-align:center;direction:rtl;font-family:inherit}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:rgba(25,25,40,.9);backdrop-filter:blur(14px);border:1px solid var(--line);padding:12px 22px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;transition:all .35s cubic-bezier(.5,1.6,.4,1);pointer-events:none;z-index:60;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media(max-width:640px){
+  .job{flex-direction:column}.th{width:100%}.th:not(:has(img)){aspect-ratio:auto;height:64px}
+  .go{width:100%}
+  header{flex-wrap:wrap}.engine{width:100%;justify-content:space-between}
+}
 </style>
 </head>
 <body>
+<div class="bg"><div class="grid"></div><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#ff3b78"/><stop offset=".55" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="i-paste" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="M17 10l5-3v10l-5-3z"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16m0 5v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8m0-5v5h-5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V8m0 0l-5 5m5-5l5 5M5 4h14"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="rgba(52,211,153,.15)"/><path d="M7.5 12.5l3 3 6-6.5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h8M3 6h.01M3 12h.01M3 18h.01"/><path d="M19 16l3 2-3 2z" fill="currentColor"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+</svg>
+
 <div class="wrap">
   <header>
-    <div class="logo">▶</div>
-    <h1>מוריד יוטיוב</h1>
-    <div class="upd" title="מנוע ההורדה (yt-dlp) - מתעדכן כשיוטיוב משנים משהו">
-      <span class="dot" id="udot"></span>
-      <small id="uver">...</small>
-      <button class="btn sm" id="ubtn" onclick="doUpdate()">🔄 עדכון</button>
+    <img class="logo" src="/icon.png" alt="">
+    <div class="brand">
+      <h1>מוריד יוטיוב</h1>
+      <p>וידאו · MP3 · פלייליסטים שלמים</p>
+    </div>
+    <div class="engine" title="מנוע ההורדה מתעדכן כשיוטיוב משנים משהו">
+      <span class="pulse" id="pulse"></span>
+      <div class="meta"><b id="estate">מנוע ההורדה</b><small id="ever">…</small></div>
+      <button class="btn sm" id="ubtn" onclick="doUpdate()"><svg><use href="#i-sync"/></svg><span>עדכון</span></button>
     </div>
   </header>
 
-  <div id="warns"></div>
-
-  <div class="card">
-    <div class="lbl">הדבק קישור לסרטון, לפלייליסט או לערוץ (אפשר כמה קישורים, אחד בכל שורה)</div>
-    <textarea id="urls" placeholder="https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/playlist?list=..." oninput="detect()"></textarea>
-    <div class="row">
-      <div class="seg" id="mode">
-        <button data-v="video" class="on" onclick="setMode('video')">🎬 וידאו</button>
-        <button data-v="mp3" onclick="setMode('mp3')">🎵 MP3</button>
-      </div>
-      <select id="quality"></select>
-      <label class="chk" id="plwrap" style="display:none"><input type="checkbox" id="pl" checked> כל הפלייליסט</label>
-      <button class="btn main" id="go" onclick="download()">⬇ הורד</button>
+  <section class="card hero">
+    <div class="input">
+      <svg class="lnk"><use href="#i-link"/></svg>
+      <textarea id="urls" rows="1" placeholder="הדבק כאן קישור לסרטון, לפלייליסט או לערוץ… (אפשר כמה, אחד בכל שורה)" oninput="onInput()"></textarea>
+      <button class="btn" onclick="pasteLink()"><svg><use href="#i-paste"/></svg>הדבק</button>
     </div>
-  </div>
-
-  <div class="card">
-    <div class="folder">
-      <span>📁 שמירה אל:</span>
-      <code id="outdir"></code>
-      <button class="btn sm" onclick="post('/api/settings',{pick_folder:true})">שנה</button>
-      <button class="btn sm" onclick="post('/api/open',{})">פתח</button>
+    <div class="pl-badge" id="plb">
+      <svg><use href="#i-list"/></svg>
+      <span style="flex:1">זוהה פלייליסט</span>
+      <label class="switch"><input type="checkbox" id="pl" checked><span class="tr"></span><span>להוריד את כולו</span></label>
     </div>
-    <details>
-      <summary style="cursor:pointer">הגדרות מתקדמות</summary>
-      <div class="row">
-        <label class="chk"><input type="checkbox" id="auto" onchange="post('/api/settings',{auto_update:this.checked})"> לעדכן אוטומטית (פעם ביום, ומיד כשהורדה נתקעת בגלל שינוי ביוטיוב)</label>
+    <div class="controls">
+      <div class="seg" id="seg">
+        <span class="thumb" id="segThumb"></span>
+        <button data-v="video" onclick="setMode('video')"><svg><use href="#i-video"/></svg>וידאו</button>
+        <button data-v="mp3" onclick="setMode('mp3')"><svg><use href="#i-music"/></svg>MP3</button>
       </div>
-      <div class="row">
-        <span style="font-size:14px">עוגיות מדפדפן:</span>
+      <div class="chips" id="chips"></div>
+      <button class="btn grad go" id="go" onclick="download()"><svg><use href="#i-down"/></svg>הורדה</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="bar-row">
+      <div class="path"><svg><use href="#i-folder"/></svg><code id="outdir"></code></div>
+      <button class="btn sm" onclick="post('/api/settings',{pick_folder:true})">שינוי</button>
+      <button class="btn sm" onclick="post('/api/open',{})"><svg><use href="#i-folder"/></svg>פתיחה</button>
+      <button class="btn icon" title="הגדרות" onclick="$('adv').classList.toggle('show')"><svg><use href="#i-gear"/></svg></button>
+    </div>
+    <div class="adv" id="adv">
+      <label class="switch"><input type="checkbox" id="auto" onchange="post('/api/settings',{auto_update:this.checked})"><span class="tr"></span>
+        <span>עדכון אוטומטי – פעם ביום, ומיד כשהורדה נתקעת בגלל שינוי ביוטיוב</span></label>
+      <div class="bar-row">
+        <span style="font-size:14px;font-weight:500">שימוש בחשבון מהדפדפן:</span>
         <select id="cookies" onchange="post('/api/settings',{cookies_browser:this.value})">
-          <option value="">בלי (רגיל)</option>
-          <option value="firefox">Firefox</option>
-          <option value="edge">Edge</option>
-          <option value="chrome">Chrome</option>
-          <option value="brave">Brave</option>
+          <option value="">כבוי (רגיל)</option><option value="firefox">Firefox</option><option value="edge">Edge</option>
+          <option value="chrome">Chrome</option><option value="brave">Brave</option>
         </select>
       </div>
-      <div class="hint">רק אם יוטיוב כותב "Sign in to confirm you're not a bot" או לסרטונים מוגבלי גיל: ההורדה תשתמש בחשבון שמחובר בדפדפן. Firefox עובד הכי טוב; ב-Chrome/Edge צריך לסגור את הדפדפן בזמן ההורדה.</div>
-    </details>
-  </div>
+      <div class="hint">להפעיל רק אם יוטיוב כותב "Sign in to confirm you're not a bot", או לסרטונים מוגבלי גיל. Firefox עובד הכי טוב; עם Chrome/Edge צריך לסגור את הדפדפן בזמן ההורדה.</div>
+    </div>
+  </section>
 
-  <div style="display:flex;align-items:center;margin:18px 0 10px">
-    <b style="flex:1">הורדות</b>
-    <button class="btn sm" onclick="post('/api/clear',{})">נקה שהסתיימו</button>
+  <div class="sec">
+    <h2>הורדות <span class="count" id="count">0</span></h2>
+    <button class="btn sm" onclick="post('/api/clear',{})"><svg><use href="#i-trash"/></svg>ניקוי שהסתיימו</button>
   </div>
-  <div id="jobs"><div class="empty">עדיין לא הורדת כלום</div></div>
+  <div id="jobs"></div>
+</div>
+
+<div class="overlay" id="ov">
+  <div class="card setup">
+    <div class="ring"><svg viewBox="0 0 120 120"><circle class="bgc" cx="60" cy="60" r="52"/><circle class="fg" id="ringFg" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/></svg><b id="ringPct">0%</b></div>
+    <h3 id="setupTitle">מכין את הכלי</h3>
+    <p id="setupStep">רק בפעם הראשונה – מוריד את רכיבי ההורדה…</p>
+    <div id="setupErr"></div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-const Q = {video:[['1080','1080p (מומלץ)'],['best','הכי גבוה שיש'],['2160','4K'],['1440','1440p'],['720','720p'],['480','480p'],['360','360p']],
-           mp3:[['192','192kbps (מומלץ)'],['320','320kbps'],['128','128kbps']]};
-let mode = localStorage.mode || 'video';
+const Q = {video:[['1080','1080p','מומלץ'],['best','מקסימום'],['2160','4K'],['1440','1440p'],['720','720p'],['480','480p']],
+           mp3:[['192','192k','מומלץ'],['320','320k','הכי טוב'],['128','128k']]};
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon = (n, cls='') => `<svg class="${cls}"><use href="#i-${n}"/></svg>`;
+let mode = localStorage.mode || 'video';
 
 function setMode(m){
   mode = m; localStorage.mode = m;
-  document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
-  const saved = localStorage['q_' + m];
-  $('quality').innerHTML = Q[m].map(([v,t]) => `<option value="${v}" ${v===saved?'selected':''}>${t}</option>`).join('');
+  document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
+  const on = document.querySelector('#seg button.on'), t = $('segThumb');
+  t.style.width = on.offsetWidth + 'px'; t.style.right = (on.parentElement.offsetWidth - on.offsetLeft - on.offsetWidth - 1) + 'px';
+  const cur = localStorage['q_' + m] || Q[m][0][0];
+  $('chips').innerHTML = Q[m].map(([v,t,s]) => `<button class="chip ${v===cur?'on':''}" onclick="setQ('${v}')">${t}${s?`<small>${s}</small>`:''}</button>`).join('');
 }
-$('quality').onchange = () => localStorage['q_' + mode] = $('quality').value;
-function detect(){ $('plwrap').style.display = /[?&]list=|\/playlist|youtube\.com\/(@|c\/|channel\/|user\/)/.test($('urls').value) ? '' : 'none'; }
-function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000); }
+function setQ(v){ localStorage['q_' + mode] = v; setMode(mode); }
+const curQ = () => localStorage['q_' + mode] || Q[mode][0][0];
 
+function onInput(){
+  const ta = $('urls'); ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 180) + 'px';
+  $('plb').classList.toggle('show', /[?&]list=|\/playlist|youtube\.com\/(@|c\/|channel\/|user\/)/.test(ta.value));
+}
+async function pasteLink(){
+  try { const t = await navigator.clipboard.readText(); if (t) { const ta = $('urls'); ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + t.trim(); onInput(); } }
+  catch { $('urls').focus(); toast('לחץ Ctrl+V כדי להדביק'); }
+}
+$('urls').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); download(); } });
+
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3200); }
 async function post(url, body){
   const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) toast(j.error || 'שגיאה');
-  refresh();
-  return j;
+  refresh(); return j;
 }
-
 async function download(){
   const urls = $('urls').value.trim();
-  if (!urls) return toast('הדבק קישור קודם');
-  const j = await post('/api/download', {urls, mode, quality:$('quality').value, playlist:$('pl').checked});
-  if (j.ok){ $('urls').value = ''; detect(); toast(j.jobs.length > 1 ? `${j.jobs.length} הורדות נוספו` : 'ההורדה התחילה'); }
+  if (!urls) { $('urls').focus(); return toast('הדבק קישור קודם'); }
+  const j = await post('/api/download', {urls, mode, quality:curQ(), playlist:$('pl').checked});
+  if (j.ok){ $('urls').value = ''; onInput(); toast(j.jobs.length > 1 ? `${j.jobs.length} הורדות נוספו לתור` : 'ההורדה התחילה 🚀'); }
+}
+function doUpdate(){ post('/api/update', {}); toast('בודק אם יש גרסה חדשה…'); }
+
+function renderEngine(s){
+  const u = s.update, busy = u.running || s.setup.running;
+  const newer = u.latest && s.version && u.latest !== s.version && !busy;
+  $('pulse').className = 'pulse ' + (busy ? 'busy' : newer ? 'new' : s.version ? 'ok' : '');
+  $('estate').textContent = busy ? 'מעדכן…' : newer ? 'יש גרסה חדשה' : s.version ? 'מעודכן ופעיל' : 'לא מותקן';
+  $('ever').textContent = s.version ? 'yt-dlp ' + s.version : '—';
+  const b = $('ubtn');
+  b.disabled = busy;
+  b.className = 'btn sm' + (newer ? ' amber' : '') + (busy ? ' spin' : '');
+  b.innerHTML = newer ? icon('up') + '<span>עדכן עכשיו</span>' : icon('sync') + '<span>' + (busy ? 'מעדכן' : 'עדכון') + '</span>';
+  if (renderEngine.last !== undefined && u.message && u.message !== renderEngine.last && !u.running) toast(u.message);
+  renderEngine.last = u.message;
 }
 
-function doUpdate(){ $('ubtn').disabled = true; post('/api/update', {}); toast('בודק עדכונים...'); }
-
-function renderUpdate(u){
-  const newer = u.latest && u.installed && u.latest !== u.installed;
-  $('udot').className = 'dot ' + (u.running ? '' : newer ? 'new' : u.installed ? 'ok' : '');
-  $('uver').textContent = u.running ? 'מעדכן...' : (u.installed ? 'v' + u.installed : 'לא מותקן');
-  $('ubtn').disabled = u.running;
-  $('ubtn').className = 'btn sm' + (newer ? ' amber' : '');
-  $('ubtn').textContent = newer ? '⬆ יש עדכון' : '🔄 עדכון';
-  const msg = u.message || '';
-  if (msg && msg !== renderUpdate.last && !u.running) toast(msg);
-  renderUpdate.last = msg;
+function renderSetup(s){
+  const st = s.setup, show = !s.ready || (st.running && !s.version);
+  $('ov').classList.toggle('show', show);
+  if (!show) return;
+  const p = st.percent || 0;
+  $('ringFg').style.strokeDashoffset = 326.7 * (1 - p / 100);
+  $('ringPct').textContent = st.running ? p + '%' : (st.error ? '!' : '…');
+  $('setupStep').textContent = st.running ? 'מוריד: ' + st.step : (st.error ? 'לא הצלחתי להוריד את הרכיבים. בדוק חיבור לאינטרנט.' : 'רק בפעם הראשונה – מוריד את רכיבי ההורדה…');
+  $('setupErr').innerHTML = st.error && !st.running ? `<div class="err">${esc(st.error)}</div><button class="btn grad" style="margin-top:16px" onclick="post('/api/setup',{})">${icon('retry')}נסה שוב</button>` : '';
 }
 
-function renderJob(j){
-  const total = j.total || 0, done = j.done || 0;
-  const cur = j.current;
-  const all = total > 1 ? Math.round(100 * (done + (cur && cur.state !== 'done' ? (cur.percent || 0) / 100 : 0)) / total)
-                        : (cur ? cur.percent : (j.state === 'done' ? 100 : 0));
-  const kind = j.mode === 'mp3' ? '🎵 MP3' : '🎬 וידאו ' + (j.quality === 'best' ? 'מקס׳' : j.quality + 'p');
-  const running = j.state === 'running' || j.state === 'queued';
-  let h = `<div class="job ${j.state}"><div class="jh"><div class="jt">
-    <b>${esc(j.title)}</b>
-    <div class="st"><span class="tag">${kind}</span>${j.playlist ? `<span class="tag">פלייליסט ${total ? done + '/' + total : ''}</span>` : ''}${esc(j.status)}</div>
-  </div>
-  ${running ? `<button class="btn sm" onclick="post('/api/cancel',{id:'${j.id}'})">ביטול</button>` : ''}
-  ${done ? `<button class="btn sm" onclick="post('/api/open',{id:'${j.id}'})">📁 פתח</button>` : ''}
-  </div>
-  <div class="bar"><div class="fill ${j.state==='done'?'all':''}" style="width:${j.state==='done'?100:all}%"></div></div>`;
+function jobHtml(j){
+  const cur = j.current, total = j.total || 0, done = j.done || 0;
+  const running = j.state === 'running', queued = j.state === 'queued';
+  let pct = total > 1 ? 100 * (done + (cur && cur.state !== 'done' ? (cur.percent || 0) / 100 : 0)) / total
+                      : (cur ? cur.percent : 0);
+  if (j.state === 'done') pct = 100;
+  const thumb = (j.playlist && cur && cur.thumb) || j.thumb;
+  const q = j.mode === 'mp3' ? j.quality + 'k' : (j.quality === 'best' ? 'מקס׳' : j.quality === '2160' ? '4K' : j.quality + 'p');
+  const acts = [
+    (running || queued) ? `<button class="btn" title="ביטול" onclick="post('/api/cancel',{id:'${j.id}'})">${icon('x')}</button>` : '',
+    ['error','partial','cancelled'].includes(j.state) ? `<button class="btn" title="נסה שוב" onclick="post('/api/retry',{id:'${j.id}'})">${icon('retry')}</button>` : '',
+    done ? `<button class="btn" title="פתח תיקייה" onclick="post('/api/open',{id:'${j.id}'})">${icon('folder')}</button>` : ''
+  ].join('');
+  let info = '';
   if (running && cur && cur.state !== 'done')
-    h += `<div class="cur"><span>${j.playlist ? '#' + esc(cur.index) + ' ' : ''}${esc(cur.title)}</span><span>${(cur.percent||0).toFixed(0)}% ${esc(cur.speed||'')} ${cur.eta && cur.eta!=='NA' ? '· נשאר ' + esc(cur.eta) : ''}</span></div>`;
-  if (j.errors.length) h += `<div class="err">${esc(j.errors.slice(-5).join('\n'))}</div>`;
-  if (j.playlist && j.items.length) h += `<details><summary>${j.items.length} סרטונים</summary><ul>${
-    j.items.map(it => `<li>${it.state==='done'?'✅':'⏳'} ${esc(it.index)}. ${esc(it.title)}</li>`).join('')}</ul></details>`;
-  return h + '</div>';
+    info = `<span class="cur">${j.playlist ? `#${esc(cur.index)} · ` : ''}${esc(j.playlist ? cur.title : (cur.speed || ''))}</span>
+            <span>${j.playlist && cur.speed ? esc(cur.speed) + ' · ' : ''}${cur.eta && cur.eta !== 'NA' && cur.eta !== 'Unknown' ? 'נשאר ' + esc(cur.eta) + ' · ' : ''}<b>${Math.round(pct)}%</b></span>`;
+  else if (j.playlist && total) info = `<span>${done} מתוך ${total} סרטונים</span><b>${Math.round(pct)}%</b>`;
+  return `<div class="job ${j.state}" data-id="${j.id}">
+    <div class="th">${thumb ? `<img src="${esc(thumb)}" onerror="this.remove()">` : icon(j.mode === 'mp3' ? 'music' : 'play')}
+      ${j.playlist && total ? `<span class="badge">${done}/${total}</span>` : (cur && cur.duration ? `<span class="badge">${esc(cur.duration)}</span>` : '')}
+      ${j.state === 'done' ? `<div class="ok">${icon('check')}</div>` : ''}</div>
+    <div class="jb">
+      <div class="jt"><h3>${esc(j.title)}</h3><div class="acts">${acts}</div></div>
+      <div class="tags">
+        <span class="tag mode">${j.mode === 'mp3' ? 'MP3' : 'וידאו'} · ${q}</span>
+        ${j.playlist ? `<span class="tag pl">פלייליסט</span>` : ''}
+        <span class="status ${j.state}">${j.state === 'running' ? '● ' : ''}${esc(j.status)}</span>
+      </div>
+      <div class="prog"><div class="track"><div class="fill" style="width:${pct}%"></div></div>${info ? `<div class="pinfo">${info}</div>` : ''}</div>
+      ${j.errors.length ? `<div class="err">${esc(j.errors.slice(-4).join('\n'))}</div>` : ''}
+      ${j.playlist && j.items.length > 1 ? `<details class="list" ${openLists.has(j.id) ? 'open' : ''} ontoggle="toggleList('${j.id}', this.open)"><summary>${icon('list')} רשימת הסרטונים (${j.items.length})</summary><ul>${
+        j.items.map(it => `<li><span class="n">${esc(it.index)}</span><span>${esc(it.title)}</span><span>${it.state === 'done' ? '✅' : Math.round(it.percent || 0) + '%'}</span></li>`).join('')}</ul></details>` : ''}
+    </div></div>`;
 }
+const openLists = new Set(), cache = {};
+function renderJobs(list){
+  const box = $('jobs');
+  if (!list.length) { box.innerHTML = `<div class="empty">${icon('down')}<b>עוד לא הורדת כלום</b>הדבק קישור למעלה ולחץ "הורדה"</div>`; for (const k in cache) delete cache[k]; return; }
+  box.querySelector('.empty')?.remove();
+  const keep = new Set(list.map(j => j.id));
+  box.querySelectorAll('.job').forEach(el => { if (!keep.has(el.dataset.id)) { el.remove(); delete cache[el.dataset.id]; } });
+  let prev = null;
+  for (const j of list) {
+    const html = jobHtml(j);
+    let el = box.querySelector(`.job[data-id="${j.id}"]`);
+    if (!el) { const t = document.createElement('template'); t.innerHTML = html.trim(); el = t.content.firstChild; el.classList.add('new'); }
+    else if (cache[j.id] !== html) { patch(el, html); }
+    cache[j.id] = html;
+    if (prev ? prev.nextSibling !== el : box.firstChild !== el) prev ? prev.after(el) : box.prepend(el);
+    prev = el;
+  }
+}
+function patch(el, html){
+  // keep the <img> element so thumbnails do not flicker
+  const t = document.createElement('template'); t.innerHTML = html.trim(); const n = t.content.firstChild;
+  const oldImg = el.querySelector('.th img'), newImg = n.querySelector('.th img');
+  if (oldImg && newImg && oldImg.getAttribute('src') === newImg.getAttribute('src')) newImg.replaceWith(oldImg);
+  el.className = n.className; el.replaceChildren(...n.childNodes);
+}
+function toggleList(id, open){ open ? openLists.add(id) : openLists.delete(id); }
 
 async function refresh(){
   try{
     const s = await (await fetch('/api/state')).json();
-    renderUpdate(s.update);
+    renderEngine(s); renderSetup(s);
     $('outdir').textContent = s.settings.out_dir;
     $('auto').checked = s.settings.auto_update;
     if (document.activeElement !== $('cookies')) $('cookies').value = s.settings.cookies_browser;
-    const w = [];
-    if (!s.ffmpeg) w.push('ffmpeg חסר - בלי זה אין המרה ל-MP3 ואין וידאו באיכות גבוהה. סגור והפעל שוב את "הפעל.bat".');
-    if (!s.deno) w.push('רכיב deno חסר - לחץ "עדכון" כדי להתקין אותו (יוטיוב דורש אותו).');
-    $('warns').innerHTML = w.map(t => `<div class="warn">${t}</div>`).join('');
-    $('jobs').innerHTML = s.jobs.length ? s.jobs.map(renderJob).join('') : '<div class="empty">עדיין לא הורדת כלום</div>';
-  }catch(e){ $('jobs').innerHTML = '<div class="empty">התוכנה סגורה. הפעל את "הפעל.bat" מחדש.</div>'; }
+    $('count').textContent = s.jobs.length;
+    renderJobs(s.jobs);
+  }catch(e){
+    $('jobs').innerHTML = `<div class="empty"><b>התוכנה נסגרה</b>הפעל אותה מחדש</div>`; for (const k in cache) delete cache[k];
+  }
 }
-setMode(mode); detect(); refresh(); setInterval(refresh, 1000);
+setMode(mode); onInput(); refresh(); setInterval(refresh, 1000);
+window.addEventListener('resize', () => setMode(mode));
 </script>
 </body>
 </html>
