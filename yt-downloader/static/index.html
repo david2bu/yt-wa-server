@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מוריד יוטיוב</title>
+<style>
+:root{--bg:#0b0b12;--surface:#13131c;--border:#232335;--red:#ff3b3b;--violet:#7c5cff;--green:#22c55e;--amber:#f59e0b;--text:#f0f0f5;--muted:#8a8aa3}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Rubik,Arial,sans-serif;min-height:100vh;padding:24px 16px}
+.wrap{max-width:760px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.logo{width:42px;height:42px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(255,59,59,.3)}
+h1{font-size:22px;font-weight:800;flex:1}
+.upd{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px 6px 6px 12px}
+.upd small{color:var(--muted);font-size:12px;direction:ltr}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--green)}.dot.new{background:var(--amber)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px}
+.lbl{font-size:13px;color:var(--muted);margin-bottom:8px}
+textarea{width:100%;min-height:74px;resize:vertical;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font:14px/1.5 Consolas,monospace;direction:ltr;outline:none}
+textarea:focus{border-color:var(--violet)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.seg{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);padding:9px 16px;border-radius:8px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer}
+.seg button.on{background:var(--violet);color:#fff}
+select{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:inherit;font-size:14px}
+label.chk{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;background:var(--border);color:var(--text)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.main{background:linear-gradient(90deg,var(--red),var(--violet));color:#fff;padding:13px 26px;font-size:16px;margin-inline-start:auto}
+.btn.sm{padding:7px 12px;font-size:13px}
+.btn.amber{background:var(--amber);color:#111}
+.folder{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+.folder code{direction:ltr;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;flex:1;min-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.job{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
+.job.done{border-color:rgba(34,197,94,.4)}.job.error{border-color:rgba(255,59,59,.5)}.job.partial{border-color:rgba(245,158,11,.5)}
+.jh{display:flex;gap:10px;align-items:flex-start}
+.jt{flex:1;min-width:0}
+.jt b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{display:inline-block;font-size:11px;border-radius:6px;padding:2px 7px;background:var(--bg);border:1px solid var(--border);color:var(--muted);margin-inline-end:6px}
+.st{font-size:13px;color:var(--muted);margin-top:4px}
+.bar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:10px}
+.fill{height:100%;background:linear-gradient(90deg,var(--red),var(--violet));transition:width .4s}
+.fill.all{background:var(--green)}
+.cur{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;gap:10px}
+.cur span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.err{font-size:12px;color:#ff8a8a;margin-top:8px;direction:ltr;text-align:left;max-height:90px;overflow:auto;white-space:pre-wrap}
+details{margin-top:8px;font-size:12px;color:var(--muted)}
+details li{list-style:none;padding:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}
+.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);color:#fcd34d;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222236;border:1px solid var(--border);padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">▶</div>
+    <h1>מוריד יוטיוב</h1>
+    <div class="upd" title="מנוע ההורדה (yt-dlp) - מתעדכן כשיוטיוב משנים משהו">
+      <span class="dot" id="udot"></span>
+      <small id="uver">...</small>
+      <button class="btn sm" id="ubtn" onclick="doUpdate()">🔄 עדכון</button>
+    </div>
+  </header>
+
+  <div id="warns"></div>
+
+  <div class="card">
+    <div class="lbl">הדבק קישור לסרטון, לפלייליסט או לערוץ (אפשר כמה קישורים, אחד בכל שורה)</div>
+    <textarea id="urls" placeholder="https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/playlist?list=..." oninput="detect()"></textarea>
+    <div class="row">
+      <div class="seg" id="mode">
+        <button data-v="video" class="on" onclick="setMode('video')">🎬 וידאו</button>
+        <button data-v="mp3" onclick="setMode('mp3')">🎵 MP3</button>
+      </div>
+      <select id="quality"></select>
+      <label class="chk" id="plwrap" style="display:none"><input type="checkbox" id="pl" checked> כל הפלייליסט</label>
+      <button class="btn main" id="go" onclick="download()">⬇ הורד</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="folder">
+      <span>📁 שמירה אל:</span>
+      <code id="outdir"></code>
+      <button class="btn sm" onclick="post('/api/settings',{pick_folder:true})">שנה</button>
+      <button class="btn sm" onclick="post('/api/open',{})">פתח</button>
+    </div>
+    <details>
+      <summary style="cursor:pointer">הגדרות מתקדמות</summary>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="auto" onchange="post('/api/settings',{auto_update:this.checked})"> לעדכן אוטומטית (פעם ביום, ומיד כשהורדה נתקעת בגלל שינוי ביוטיוב)</label>
+      </div>
+      <div class="row">
+        <span style="font-size:14px">עוגיות מדפדפן:</span>
+        <select id="cookies" onchange="post('/api/settings',{cookies_browser:this.value})">
+          <option value="">בלי (רגיל)</option>
+          <option value="firefox">Firefox</option>
+          <option value="edge">Edge</option>
+          <option value="chrome">Chrome</option>
+          <option value="brave">Brave</option>
+        </select>
+      </div>
+      <div class="hint">רק אם יוטיוב כותב "Sign in to confirm you're not a bot" או לסרטונים מוגבלי גיל: ההורדה תשתמש בחשבון שמחובר בדפדפן. Firefox עובד הכי טוב; ב-Chrome/Edge צריך לסגור את הדפדפן בזמן ההורדה.</div>
+    </details>
+  </div>
+
+  <div style="display:flex;align-items:center;margin:18px 0 10px">
+    <b style="flex:1">הורדות</b>
+    <button class="btn sm" onclick="post('/api/clear',{})">נקה שהסתיימו</button>
+  </div>
+  <div id="jobs"><div class="empty">עדיין לא הורדת כלום</div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const Q = {video:[['1080','1080p (מומלץ)'],['best','הכי גבוה שיש'],['2160','4K'],['1440','1440p'],['720','720p'],['480','480p'],['360','360p']],
+           mp3:[['192','192kbps (מומלץ)'],['320','320kbps'],['128','128kbps']]};
+let mode = localStorage.mode || 'video';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function setMode(m){
+  mode = m; localStorage.mode = m;
+  document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('on', b.dataset.v === m));
+  const saved = localStorage['q_' + m];
+  $('quality').innerHTML = Q[m].map(([v,t]) => `<option value="${v}" ${v===saved?'selected':''}>${t}</option>`).join('');
+}
+$('quality').onchange = () => localStorage['q_' + mode] = $('quality').value;
+function detect(){ $('plwrap').style.display = /[?&]list=|\/playlist|youtube\.com\/(@|c\/|channel\/|user\/)/.test($('urls').value) ? '' : 'none'; }
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000); }
+
+async function post(url, body){
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) toast(j.error || 'שגיאה');
+  refresh();
+  return j;
+}
+
+async function download(){
+  const urls = $('urls').value.trim();
+  if (!urls) return toast('הדבק קישור קודם');
+  const j = await post('/api/download', {urls, mode, quality:$('quality').value, playlist:$('pl').checked});
+  if (j.ok){ $('urls').value = ''; detect(); toast(j.jobs.length > 1 ? `${j.jobs.length} הורדות נוספו` : 'ההורדה התחילה'); }
+}
+
+function doUpdate(){ $('ubtn').disabled = true; post('/api/update', {}); toast('בודק עדכונים...'); }
+
+function renderUpdate(u){
+  const newer = u.latest && u.installed && u.latest !== u.installed;
+  $('udot').className = 'dot ' + (u.running ? '' : newer ? 'new' : u.installed ? 'ok' : '');
+  $('uver').textContent = u.running ? 'מעדכן...' : (u.installed ? 'v' + u.installed : 'לא מותקן');
+  $('ubtn').disabled = u.running;
+  $('ubtn').className = 'btn sm' + (newer ? ' amber' : '');
+  $('ubtn').textContent = newer ? '⬆ יש עדכון' : '🔄 עדכון';
+  const msg = u.message || '';
+  if (msg && msg !== renderUpdate.last && !u.running) toast(msg);
+  renderUpdate.last = msg;
+}
+
+function renderJob(j){
+  const total = j.total || 0, done = j.done || 0;
+  const cur = j.current;
+  const all = total > 1 ? Math.round(100 * (done + (cur && cur.state !== 'done' ? (cur.percent || 0) / 100 : 0)) / total)
+                        : (cur ? cur.percent : (j.state === 'done' ? 100 : 0));
+  const kind = j.mode === 'mp3' ? '🎵 MP3' : '🎬 וידאו ' + (j.quality === 'best' ? 'מקס׳' : j.quality + 'p');
+  const running = j.state === 'running' || j.state === 'queued';
+  let h = `<div class="job ${j.state}"><div class="jh"><div class="jt">
+    <b>${esc(j.title)}</b>
+    <div class="st"><span class="tag">${kind}</span>${j.playlist ? `<span class="tag">פלייליסט ${total ? done + '/' + total : ''}</span>` : ''}${esc(j.status)}</div>
+  </div>
+  ${running ? `<button class="btn sm" onclick="post('/api/cancel',{id:'${j.id}'})">ביטול</button>` : ''}
+  ${done ? `<button class="btn sm" onclick="post('/api/open',{id:'${j.id}'})">📁 פתח</button>` : ''}
+  </div>
+  <div class="bar"><div class="fill ${j.state==='done'?'all':''}" style="width:${j.state==='done'?100:all}%"></div></div>`;
+  if (running && cur && cur.state !== 'done')
+    h += `<div class="cur"><span>${j.playlist ? '#' + esc(cur.index) + ' ' : ''}${esc(cur.title)}</span><span>${(cur.percent||0).toFixed(0)}% ${esc(cur.speed||'')} ${cur.eta && cur.eta!=='NA' ? '· נשאר ' + esc(cur.eta) : ''}</span></div>`;
+  if (j.errors.length) h += `<div class="err">${esc(j.errors.slice(-5).join('\n'))}</div>`;
+  if (j.playlist && j.items.length) h += `<details><summary>${j.items.length} סרטונים</summary><ul>${
+    j.items.map(it => `<li>${it.state==='done'?'✅':'⏳'} ${esc(it.index)}. ${esc(it.title)}</li>`).join('')}</ul></details>`;
+  return h + '</div>';
+}
+
+async function refresh(){
+  try{
+    const s = await (await fetch('/api/state')).json();
+    renderUpdate(s.update);
+    $('outdir').textContent = s.settings.out_dir;
+    $('auto').checked = s.settings.auto_update;
+    if (document.activeElement !== $('cookies')) $('cookies').value = s.settings.cookies_browser;
+    const w = [];
+    if (!s.ffmpeg) w.push('ffmpeg חסר - בלי זה אין המרה ל-MP3 ואין וידאו באיכות גבוהה. סגור והפעל שוב את "הפעל.bat".');
+    if (!s.deno) w.push('רכיב deno חסר - לחץ "עדכון" כדי להתקין אותו (יוטיוב דורש אותו).');
+    $('warns').innerHTML = w.map(t => `<div class="warn">${t}</div>`).join('');
+    $('jobs').innerHTML = s.jobs.length ? s.jobs.map(renderJob).join('') : '<div class="empty">עדיין לא הורדת כלום</div>';
+  }catch(e){ $('jobs').innerHTML = '<div class="empty">התוכנה סגורה. הפעל את "הפעל.bat" מחדש.</div>'; }
+}
+setMode(mode); detect(); refresh(); setInterval(refresh, 1000);
+</script>
+</body>
+</html>
