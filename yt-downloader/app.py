@@ -17,6 +17,7 @@ import os
 import queue
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
@@ -661,12 +662,22 @@ class Handler(BaseHTTPRequestHandler):
         open_path(target)
 
 
+class Server(ThreadingHTTPServer):
+    # Never share a port with another program. On Windows SO_REUSEADDR lets a
+    # second program bind a port that is already taken, and the browser then
+    # reaches whichever app answers first, so ask for exclusive use instead.
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if IS_WIN and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def start_server():
-    port = int(os.environ.get("YTD_PORT", "8770"))
-    try:
-        server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    except OSError:  # another copy is running: take any free port
-        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    # A free port chosen by the system each run, so the app never collides
+    # with other local tools (set YTD_PORT to pin one).
+    server = Server(("127.0.0.1", int(os.environ.get("YTD_PORT", "0"))), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, f"http://127.0.0.1:{server.server_address[1]}"
 
