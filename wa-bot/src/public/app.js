@@ -518,7 +518,7 @@ async function renderNew() {
 // ---------------- connection ----------------
 
 async function renderConnection() {
-  await Promise.all([refreshStatus(), loadBasics()])
+  const [{ key: apiKey }] = await Promise.all([api('GET', '/api/api-key'), refreshStatus(), loadBasics()])
   const s = state.status
   const phoneInput = h('input', { type: 'tel', dir: 'ltr', value: (s.ownerPhones || []).map(phoneLabel).join(', '), placeholder: '050-1234567' })
   const curPw = h('input', { type: 'password', autocomplete: 'current-password' })
@@ -550,7 +550,36 @@ async function renderConnection() {
           await api('PUT', '/api/settings', { currentPassword: curPw.value, newPassword: newPw.value })
           showLogin()
           return 'הסיסמה הוחלפה. היכנסו עם הסיסמה החדשה.'
-        }, { rerender: false }) }, 'החלפת סיסמה'))))
+        }, { rerender: false }) }, 'החלפת סיסמה'))),
+    apiCard(apiKey))
+}
+
+// External API for other systems (automatic posting)
+function apiCard(key) {
+  const base = `${location.origin}/api/v1`
+  const copy = (text) => action(async () => {
+    await navigator.clipboard.writeText(text)
+    return 'הועתק'
+  }, { rerender: false })
+  const example = `curl -X POST ${base}/posts \\
+  -H "Authorization: Bearer ${key || '<KEY>'}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"groups":["${state.groups[0]?.subject || 'שם הקבוצה'}"],"text":"שלום","media":["https://example.com/video.mp4"],"sendAt":"2026-11-12T10:00:00+02:00"}'`
+  return h('div', { class: 'card stack' },
+    h('h2', {}, 'API לשליחה אוטומטית'),
+    h('p', { class: 'muted small', style: 'margin:0' }, 'מאפשר למערכת אחרת לשלוח פרסומים לקבוצות. בלי sendAt, הפרסום נשלח מיד.'),
+    h('label', {}, 'כתובת', h('div', { class: 'row' }, h('input', { readonly: true, dir: 'ltr', value: base, style: 'flex:1' }), h('button', { class: 'btn small', onclick: copy(base) }, 'העתקה'))),
+    key
+      ? h('label', {}, 'מפתח', h('div', { class: 'row' }, h('input', { readonly: true, dir: 'ltr', value: key, style: 'flex:1' }), h('button', { class: 'btn small', onclick: copy(key) }, 'העתקה')))
+      : h('p', {}, 'עוד לא נוצר מפתח.'),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn small', onclick: action(async () => {
+        if (key && !confirm('ליצור מפתח חדש? המפתח הנוכחי יפסיק לעבוד.')) return
+        await api('POST', '/api/api-key')
+        return 'נוצר מפתח חדש'
+      }) }, key ? 'יצירת מפתח חדש' : 'יצירת מפתח')),
+    h('label', {}, 'דוגמה', h('pre', { class: 'text', dir: 'ltr', style: 'text-align:left;font-size:12px' }, example)),
+    h('button', { class: 'btn small', onclick: copy(example) }, 'העתקת הדוגמה'))
 }
 
 // ---------------- boot ----------------
