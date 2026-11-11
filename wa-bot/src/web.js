@@ -13,7 +13,8 @@ import { reply, kick } from './queue.js'
 import { autoSchedule, formatWhen } from './scheduler.js'
 import { newMediaPath, summarize } from './handlers.js'
 import { extensionFor, kindFor } from './parse.js'
-import { ownerPhones, setOwnerPhones, hasPassword, checkPassword, setPassword, sessionSecret } from './settings.js'
+import { ownerPhones, setOwnerPhones, hasPassword, checkPassword, setPassword, sessionSecret, getApiKey, newApiKey } from './settings.js'
+import { handleApi } from './api.js'
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public')
 const STATIC = { '/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css' }
@@ -154,6 +155,9 @@ route('PUT', '/api/settings', async (req) => {
   return { ok: true, ownerPhones: ownerPhones() }
 })
 
+route('GET', '/api/api-key', () => ({ key: getApiKey() }))
+route('POST', '/api/api-key', () => ({ key: newApiKey() }))
+
 route('GET', '/api/groups', () => store.listGroups())
 route('POST', '/api/groups/refresh', async () => {
   if (!wa.connected) throw new HttpError(503, 'הבוט לא מחובר לוואטסאפ')
@@ -280,7 +284,8 @@ route('GET', '/api/calendar', ({}, {}, url) => {
 
 // ---------------- uploads ----------------
 
-function receiveUpload(req) {
+// Reads a multipart form: text fields plus files saved straight to the media folder
+function parseMultipart(req) {
   return new Promise((resolve, reject) => {
     const fields = {}
     const files = []
@@ -292,7 +297,9 @@ function receiveUpload(req) {
     } catch {
       return reject(new HttpError(400, 'העלאה לא תקינה'))
     }
-    bb.on('field', (name, val) => { fields[name] = val })
+    bb.on('field', (name, val) => {
+      fields[name] = fields[name] === undefined ? val : [].concat(fields[name], val)
+    })
     bb.on('file', (_name, stream, info) => {
       const file = newMediaPath(extensionFor(info.mimeType, info.filename))
       const out = fs.createWriteStream(file)
@@ -309,29 +316,38 @@ function receiveUpload(req) {
           for (const f of files) fs.rmSync(f.file, { force: true })
           throw new HttpError(413, `קובץ גדול מ-${config.maxFileBytes / 1048576}MB`)
         }
-        const phone = normalizePhone(fields.phone) || ownerPhones()[0] || 'owner'
-        if (!store.getCustomer(phone)) store.saveCustomer(phone, { name: ownerPhones().includes(phone) || phone === 'owner' ? 'אני' : '' })
-        const text = (fields.text || '').trim()
-        if (!files.length && !text) throw new HttpError(400, 'אין תוכן')
-
-        const sub = store.createSubmission(phone, 'web', 'ready') // web posts are complete right away
-        files.forEach((f, i) => store.addItem(sub.id, {
-          kind: kindFor(f.mimetype),
-          path: f.file,
-          mimetype: f.mimetype,
-          filename: f.filename,
-          caption: i === 0 && text && kindFor(f.mimetype) !== 'audio' ? text : null,
-          size: fs.statSync(f.file).size,
-        }))
-        const captionUsed = files.length && kindFor(files[0].mimetype) !== 'audio'
-        if (text && !captionUsed) store.addItem(sub.id, { kind: 'text', caption: text })
-        resolve(store.submissionView(store.getSubmission(sub.id)))
+        resolve({ fields, files })
       } catch (err) {
         reject(err)
       }
     })
     req.pipe(bb)
   })
+}
+
+// One post from files + text: the text becomes the caption of the first file, or its own message
+function createPost(phone, source, files, text) {
+  if (!files.length && !text) throw new HttpError(400, 'אין תוכן')
+  const sub = store.createSubmission(phone, source, 'ready') // complete right away
+  const captionUsed = files.length && kindFor(files[0].mimetype) !== 'audio'
+  files.forEach((f, i) => store.addItem(sub.id, {
+    kind: kindFor(f.mimetype),
+    path: f.file,
+    mimetype: f.mimetype,
+    filename: f.filename,
+    caption: i === 0 && captionUsed && text ? text : null,
+    size: fs.statSync(f.file).size,
+  }))
+  if (text && !captionUsed) store.addItem(sub.id, { kind: 'text', caption: text })
+  return sub
+}
+
+async function receiveUpload(req) {
+  const { fields, files } = await parseMultipart(req)
+  const phone = normalizePhone(fields.phone) || ownerPhones()[0] || 'owner'
+  if (!store.getCustomer(phone)) store.saveCustomer(phone, { name: ownerPhones().includes(phone) || phone === 'owner' ? 'אני' : '' })
+  const sub = createPost(phone, 'web', files, String(fields.text || '').trim())
+  return store.submissionView(store.getSubmission(sub.id))
 }
 
 // ---------------- media (with Range support so videos can be previewed) ----------------
@@ -417,6 +433,9 @@ async function handle(req, res) {
     res.setHeader('set-cookie', 'sid=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0')
     return send(res, 200, { ok: true })
   }
+
+  // external API for other systems: its own key, no login cookie
+  if (p.startsWith('/api/v1/')) return handleApi(req, res, url, { send, readJson, parseMultipart, createPost, HttpError })
 
   if (!p.startsWith('/api/') && !p.startsWith('/media/')) return send(res, 404, { error: 'לא נמצא' })
   if (!isLoggedIn(req)) return send(res, 401, { error: 'צריך להתחבר' })

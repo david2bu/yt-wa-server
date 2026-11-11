@@ -113,7 +113,7 @@ class WhatsApp extends EventEmitter {
     if (qr) {
       this.state = 'qr'
       this.qr = qr
-      logger.info(`scan the QR at http://<server>:${config.port}/qr?token=${config.webToken}`)
+      logger.info('waiting for QR scan: open the website, tab "חיבור"')
       if (config.pairingPhone && !this.pairingCode && !sock.authState.creds.registered) {
         try {
           this.pairingCode = await sock.requestPairingCode(config.pairingPhone)

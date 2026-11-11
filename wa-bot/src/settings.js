@@ -48,3 +48,20 @@ export function sessionSecret() {
   }
   return s
 }
+
+// Key for the external API (/api/v1). Created from the website; making a new one revokes the old.
+export const getApiKey = () => store.getSetting('api_key') || null
+
+export function newApiKey() {
+  const key = 'wab_' + crypto.randomBytes(24).toString('base64url')
+  store.setSetting('api_key', key)
+  return key
+}
+
+export function checkApiKey(given) {
+  const key = getApiKey()
+  if (!key || !given) return false
+  const a = crypto.createHash('sha256').update(String(given)).digest()
+  const b = crypto.createHash('sha256').update(key).digest()
+  return crypto.timingSafeEqual(a, b)
+}
