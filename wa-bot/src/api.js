@@ -18,6 +18,8 @@ import { checkApiKey } from './settings.js'
  *   POST   /api/v1/posts             -> create a post (JSON or multipart), sent now or at sendAt
  *   GET    /api/v1/posts/:id         -> status of a post
  *   DELETE /api/v1/posts/:id         -> cancel what hasn't been sent yet
+ *   GET    /api/v1/replies?since=<id> -> what the owner wrote in the groups the API posts to, newest last:
+ *                                       [{ id, group: {id, name}, text, postId, at }]  (postId: the post it answers)
  *
  * Errors are JSON: { "error": "..." } with a 4xx/5xx status.
  */
@@ -62,6 +64,17 @@ export async function handleApi(req, res, url, { send, readJson, parseMultipart,
       for (const f of files) if (!store.isPathInUse(f.file)) fs.rmSync(f.file, { force: true })
       throw err
     }
+  }
+
+  if (req.method === 'GET' && p === '/api/v1/replies') {
+    const since = Number(url.searchParams.get('since') || 0)
+    return send(res, 200, store.groupRepliesSince(Number.isFinite(since) ? since : 0).map((r) => ({
+      id: r.id,
+      group: { id: r.group_jid, name: r.group_name || null },
+      text: r.text,
+      postId: r.post_id ?? null,
+      at: new Date(r.created_at).toISOString(),
+    })))
   }
 
   if (postId && req.method === 'GET') {

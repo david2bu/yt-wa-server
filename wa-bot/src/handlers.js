@@ -30,7 +30,8 @@ export async function handleMessage(msg) {
 
 async function route(msg) {
   const jid = msg.key?.remoteJid
-  if (!jid || !msg.message || isJidGroup(jid) || jid === 'status@broadcast') return
+  if (jid && msg.message && isJidGroup(jid)) return groupReply(msg)
+  if (!jid || !msg.message || jid === 'status@broadcast') return
 
   const ctx = await identify(msg)
   if (!ctx) return
@@ -64,6 +65,39 @@ async function route(msg) {
   if (['סטטוס', 'מה מתוזמן', 'מתוזמן'].includes(text)) return reply(ctx.jid, customerStatus(ctx.phone))
 
   store.addItem(store.openSubmission(ctx.phone).id, { kind: 'text', caption: text })
+}
+
+// The owner's messages in a group the external API posts to are kept, for the system that posted there
+// (a reply to a video it sent: "fix this"). Everything else in groups is ignored, as before.
+async function groupReply(msg) {
+  const jid = msg.key.remoteJid
+  if (!store.isApiGroup(jid)) return
+  const content = normalizeMessageContent(msg.message)
+  const type = getContentType(content)
+  let text = ''
+  let quotedId = null
+  if (type === 'reactionMessage') {
+    text = content.reactionMessage.text || ''
+    quotedId = content.reactionMessage.key?.id || null
+  } else {
+    text = content?.conversation || content?.extendedTextMessage?.text || content?.[type]?.caption || ''
+    quotedId = content?.[type]?.contextInfo?.stanzaId || null
+  }
+  text = text.trim()
+  if (!text) return
+
+  let phone
+  if (msg.key.fromMe) {
+    // the bot runs on the owner's own number: its own posts arrive here too and are skipped
+    await new Promise((r) => setTimeout(r, 1500))
+    if (store.getSentMessage(msg.key.id)) return
+    phone = wa.me?.id ? bareJid(wa.me.id).split('@')[0] : null
+  } else {
+    phone = await wa.phoneOf(msg.key.participant, msg.key.participantAlt || msg.key.participantPn)
+    if (!phone || !(ownerPhones().includes(phone) || phone === (wa.me?.id && bareJid(wa.me.id).split('@')[0]))) return
+  }
+  store.addGroupReply({ groupJid: jid, msgId: msg.key.id, phone, text, quotedId })
+  logger.info({ group: jid, quoted: !!quotedId }, 'owner reply in an API group kept')
 }
 
 // Works out who wrote and whether they're an owner. Returns null for messages we should ignore.

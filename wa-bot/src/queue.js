@@ -126,7 +126,8 @@ async function sendDelivery(d) {
     const items = store.getItems(d.submission_id)
     if (!items.length) throw new PermanentError('אין תוכן לשליחה')
     for (let i = d.items_sent; i < items.length; i++) {
-      await wa.send(d.group_jid, await contentFor(items[i]))
+      const sent = await wa.send(d.group_jid, await contentFor(items[i]))
+      if (sent?.key?.id) store.saveDeliveryMessage(sent.key.id, d.id) // a reply quoting it finds its post
       store.setItemsSent(d.id, i + 1) // so a retry doesn't post the same item twice
       if (i < items.length - 1) await sleep(1000 + Math.random() * 1000)
     }

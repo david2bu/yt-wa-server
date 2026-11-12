@@ -107,6 +107,25 @@ for (const [col, type] of [['thumb', 'TEXT'], ['width', 'INTEGER'], ['height', '
   if (!itemCols.includes(col)) db.exec(`ALTER TABLE items ADD COLUMN ${col} ${type}`)
 }
 
+// replies in the groups the API posts to: which WhatsApp message belongs to which post, and what the owner
+// wrote back there (another system reads them over the API, e.g. to fix a video it sent)
+db.exec(`
+CREATE TABLE IF NOT EXISTS delivery_messages (
+  msg_id      TEXT PRIMARY KEY,
+  delivery_id INTEGER NOT NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS group_replies (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_jid  TEXT NOT NULL,
+  msg_id     TEXT,
+  from_phone TEXT,
+  text       TEXT NOT NULL,
+  quoted_id  TEXT,
+  created_at INTEGER NOT NULL
+);
+`)
+
 const now = () => Date.now()
 const one = (sql, ...p) => db.prepare(sql).get(...p)
 const all = (sql, ...p) => db.prepare(sql).all(...p)
@@ -366,3 +385,27 @@ export function finishedSubmissionsBefore(ts) {
 export const getSetting = (key) => one('SELECT value FROM settings WHERE key = ?', key)?.value
 export const setSetting = (key, value) =>
   run('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', key, value)
+
+// ---------- replies to API posts ----------
+
+export const saveDeliveryMessage = (msgId, deliveryId) =>
+  run('INSERT OR IGNORE INTO delivery_messages (msg_id, delivery_id, created_at) VALUES (?, ?, ?)', msgId, deliveryId, now())
+
+// a group the external API has posted to (only there are the owner's messages kept)
+export const isApiGroup = (jid) =>
+  !!one(`SELECT 1 FROM deliveries d JOIN submissions s ON s.id = d.submission_id
+         WHERE d.group_jid = ? AND s.source = 'api' LIMIT 1`, jid)
+
+export const addGroupReply = ({ groupJid, msgId, phone, text, quotedId }) =>
+  run('INSERT INTO group_replies (group_jid, msg_id, from_phone, text, quoted_id, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    groupJid, msgId ?? null, phone ?? null, text, quotedId ?? null, now())
+
+// newest last; postId is the API post the reply answers (when it quotes or reacts to that post's message)
+export const groupRepliesSince = (sinceId, limit = 100) =>
+  all(`SELECT r.id, r.group_jid, g.subject AS group_name, r.text, r.from_phone, r.created_at,
+              dl.submission_id AS post_id
+       FROM group_replies r
+       LEFT JOIN groups g ON g.jid = r.group_jid
+       LEFT JOIN delivery_messages m ON m.msg_id = r.quoted_id
+       LEFT JOIN deliveries dl ON dl.id = m.delivery_id
+       WHERE r.id > ? ORDER BY r.id LIMIT ?`, sinceId, limit)
